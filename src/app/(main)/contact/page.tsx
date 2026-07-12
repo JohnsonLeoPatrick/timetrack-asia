@@ -32,7 +32,7 @@ export default function ContactPage() {
               </div>
               <div>
                 <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-1">
-                  {t('contact.info.transmission')}
+                  Email Us
                 </p>
                 <a href="mailto:info@timetrack.asia" className="text-sm font-black tracking-tight hover:text-brand transition-colors">
                   info@timetrack.asia
@@ -46,7 +46,7 @@ export default function ContactPage() {
               </div>
               <div>
                 <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-1">
-                  {t('contact.info.presence')}
+                  Location
                 </p>
                 <p className="text-sm font-black tracking-tight">Malaysia / Singapore / SEA</p>
               </div>
@@ -58,7 +58,7 @@ export default function ContactPage() {
               </div>
               <div>
                 <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-1">
-                  {t('contact.info.support')}
+                  Working Hours
                 </p>
                 <p className="text-sm font-black tracking-tight">Mon-Fri 0900-1800 (MYT)</p>
               </div>
@@ -74,17 +74,17 @@ export default function ContactPage() {
             <div className="space-y-5">
               <div>
                 <label className="label-text">{t('contact.name')}</label>
-                <input type="text" className="input-field" placeholder={t('contact.label.name')} />
+                <input type="text" className="input-field" placeholder="Enter your full name" />
               </div>
               <div>
                 <label className="label-text">{t('contact.email')}</label>
-                <input type="email" className="input-field" placeholder={t('contact.label.email')} />
+                <input type="email" className="input-field" placeholder="Enter your email address" />
               </div>
               <div>
                 <label className="label-text">{t('contact.message')}</label>
                 <textarea
                   className="input-field min-h-[120px] resize-none"
-                  placeholder={t('contact.label.message')}
+                  placeholder="Type your message here..."
                 />
               </div>
               <button className="btn-primary w-full text-sm">

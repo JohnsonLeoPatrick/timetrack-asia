@@ -5,13 +5,6 @@ import { motion } from 'motion/react';
 import { Shield, Users, CalendarCheck, Trophy, BarChart3, Zap, Lock, Globe } from 'lucide-react';
 import { useLanguage } from '@/providers/language-provider';
 
-const roles = [
-  { level: 0, titleKey: 'about.roles.level0', descKey: 'about.roles.desc0', color: 'text-purple-500', bg: 'bg-purple-500/10' },
-  { level: 1, titleKey: 'about.roles.level1', descKey: 'about.roles.desc1', color: 'text-red-500', bg: 'bg-red-500/10' },
-  { level: 2, titleKey: 'about.roles.level2', descKey: 'about.roles.desc2', color: 'text-blue-500', bg: 'bg-blue-500/10' },
-  { level: 3, titleKey: 'about.roles.level3', descKey: 'about.roles.desc3', color: 'text-white', bg: 'bg-white/5' },
-];
-
 const services = [
   { icon: Zap, title: 'Passionate Innovation', desc: 'Simplifying sports event registration with cutting-edge technology.' },
   { icon: Shield, title: 'Scalable Solutions', desc: 'Built for everything from local tournaments to international events.' },
@@ -47,39 +40,6 @@ export default function AboutPage() {
             <p className="text-sm text-white/30 font-bold uppercase tracking-widest leading-relaxed max-w-2xl mx-auto">
               {t('about.mission.desc')}
             </p>
-          </div>
-        </div>
-      </section>
-
-      <section className="px-6 py-24">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-16">
-            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-brand mb-4">{t('about.hierarchy.subtitle')}</p>
-            <h2 className="text-3xl md:text-5xl font-display font-black uppercase tracking-tighter">{t('about.hierarchy.title')}</h2>
-          </div>
-          <div className="space-y-4">
-            {roles.map((role, i) => (
-              <motion.div
-                key={role.level}
-                initial={{ opacity: 0, x: -20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.1 }}
-                viewport={{ once: true }}
-                className={`glass rounded-2xl p-6 flex items-center gap-6 ${role.bg} border-none`}
-              >
-                <div className={`w-10 h-10 ${role.bg} rounded-xl flex items-center justify-center shrink-0`}>
-                  <span className={`${role.color} font-black text-xs`}>{role.level}</span>
-                </div>
-                <div>
-                  <h3 className={`text-sm font-black uppercase tracking-tight ${role.color}`}>
-                    {t(role.titleKey)}
-                  </h3>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-white/30 mt-1">
-                    {t(role.descKey)}
-                  </p>
-                </div>
-              </motion.div>
-            ))}
           </div>
         </div>
       </section>

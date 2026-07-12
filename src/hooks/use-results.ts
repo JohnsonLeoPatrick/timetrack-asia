@@ -43,7 +43,7 @@ export function useMyResults() {
         .select('id, event_id')
         .eq('athlete_id', user.id);
 
-      const regIds = (regs || []).map(r => r.id);
+      const regIds = (regs || []).map((r: any) => r.id);
       if (regIds.length === 0) return [];
 
       const { data: participants } = await supabase
@@ -51,7 +51,7 @@ export function useMyResults() {
         .select('id')
         .in('registration_id', regIds);
 
-      const participantIds = (participants || []).map(p => p.id);
+      const participantIds = (participants || []).map((p: any) => p.id);
       if (participantIds.length === 0) return [];
 
       const { data, error } = await supabase

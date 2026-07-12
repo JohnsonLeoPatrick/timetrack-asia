@@ -44,7 +44,7 @@ export function useOrganizerAnalytics() {
         .eq('organizer_id', user.id)
         .is('deleted_at', null);
 
-      const eventIds = (events || []).map(e => e.id);
+      const eventIds = (events || []).map((e: any) => e.id);
       if (eventIds.length === 0) return { events: [], totalRegistrations: 0, totalRevenue: 0 };
 
       const { data: registrations } = await supabase
@@ -56,8 +56,8 @@ export function useOrganizerAnalytics() {
       return {
         events: events || [],
         totalRegistrations: regs.length,
-        totalRevenue: regs.filter(r => r.status === 'PAID').reduce((s, r) => s + Number(r.net_amount), 0),
-        pendingAmount: regs.filter(r => r.status === 'PENDING').reduce((s, r) => s + Number(r.total_amount), 0),
+        totalRevenue: regs.filter((r: any) => r.status === 'PAID').reduce((s: number, r: any) => s + Number(r.net_amount), 0),
+        pendingAmount: regs.filter((r: any) => r.status === 'PENDING').reduce((s: number, r: any) => s + Number(r.total_amount), 0),
         registrationTrend: regs,
       };
     },

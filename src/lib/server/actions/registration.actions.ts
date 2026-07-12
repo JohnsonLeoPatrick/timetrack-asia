@@ -3,6 +3,7 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import { sendRegistrationConfirmation, sendPaymentConfirmation } from '@/lib/server/email/sender';
 
 const billingSchema = z.object({
   first_name: z.string().min(1),
@@ -71,11 +72,14 @@ export async function createRegistrationAction(formData: FormData) {
       p_user_id: user.id,
       p_event_id: eventId,
       p_order_amount: totalAmount,
+      p_category_id: participants[0]?.category_id || null,
     });
 
     if (couponResult?.valid) {
       discountAmount = Number(couponResult.discount_amount);
       couponId = couponResult.coupon_id;
+    } else {
+      throw new Error(couponResult?.error || 'Invalid coupon code');
     }
   }
 
@@ -93,7 +97,7 @@ export async function createRegistrationAction(formData: FormData) {
       athlete_id: user.id,
       registration_number: registrationNumber,
       persons_count: participants.length,
-      status: netAmount > 0 ? 'PENDING' : 'PAID',
+      status: 'PAID',
       total_amount: totalAmount,
       discount_amount: discountAmount,
       net_amount: netAmount,
@@ -107,18 +111,43 @@ export async function createRegistrationAction(formData: FormData) {
 
   // Insert billing details
   const parsedBilling = billingSchema.parse(billing);
-  await supabase.from('billing_details').insert({
+  const { error: billError } = await supabase.from('billing_details').insert({
     registration_id: registration.id,
     ...parsedBilling,
   });
+  if (billError) throw new Error(billError.message);
 
   // Insert participants
-  for (const p of participants) {
-    const parsedP = participantSchema.parse(p);
-    await supabase.from('participants').insert({
+  for (let i = 0; i < participants.length; i++) {
+    const p = participants[i];
+    const cleanedP = { ...p };
+
+    if (!cleanedP.full_name || cleanedP.full_name.trim() === '') {
+      cleanedP.full_name = i === 0 ? billing.first_name : `${billing.first_name} (Guest ${i + 1})`;
+    }
+
+    const optionalStringFields = [
+      'bib_name', 'email', 'phone', 'gender', 'ic_passport', 
+      'dob', 'address', 'postcode', 'country', 'medical_details', 
+      'emergency_name', 'emergency_phone'
+    ];
+
+    for (const field of optionalStringFields) {
+      if (cleanedP[field] === '') {
+        delete cleanedP[field];
+      }
+    }
+
+    if (cleanedP.age === null || cleanedP.age === undefined) {
+      delete cleanedP.age;
+    }
+
+    const parsedP = participantSchema.parse(cleanedP);
+    const { error: partError } = await supabase.from('participants').insert({
       registration_id: registration.id,
       ...parsedP,
     });
+    if (partError) throw new Error(partError.message);
   }
 
   // Redeem coupon if used
@@ -129,6 +158,35 @@ export async function createRegistrationAction(formData: FormData) {
       p_user_id: user.id,
       p_discount_amount: discountAmount,
     });
+  }
+
+  // 1. Create a successful mock payment record automatically to auto-complete the transaction
+  await supabase.from('payments').insert({
+    registration_id: registration.id,
+    payment_gateway: 'MOCK_GATEWAY',
+    amount: netAmount,
+    currency: 'MYR',
+    status: 'SUCCESS',
+  });
+
+  // 2. Trigger automated SMTP emails
+  try {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    await sendRegistrationConfirmation(user.email!, {
+      eventName: event.title,
+      registrationNumber: registration.registration_number,
+      participantName: `${billing.first_name} ${billing.last_name || ''}`,
+      eventDate: new Date(event.event_date).toLocaleDateString(),
+      dashboardUrl: `${appUrl}/profile`,
+    });
+
+    await sendPaymentConfirmation(user.email!, {
+      eventName: event.title,
+      amount: netAmount.toString(),
+      invoiceUrl: `${appUrl}/api/receipt/${registration.id}`,
+    });
+  } catch (emailErr) {
+    console.error('SMTP Automated email error:', emailErr);
   }
 
   revalidatePath(`/events/${eventId}`, 'page');

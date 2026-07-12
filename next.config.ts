@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  reactStrictMode: false,
+  cacheComponents: true,
   turbopack: {
     root: process.cwd(),
   },
@@ -20,6 +22,13 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: "5mb",
     },
+    instantNavigationDevToolsToggle: true,
+  },
+  webpack: (config, { dev, isServer }) => {
+    if (dev) {
+      config.devtool = 'eval';
+    }
+    return config;
   },
 };
 

@@ -8,6 +8,7 @@ import { Loader2 } from 'lucide-react';
 import { useLanguage } from '@/providers/language-provider';
 import { useNotification } from '@/providers/notification-provider';
 import { useSupabaseAuth } from '@/hooks/use-auth';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import type { Role } from '@/lib/types';
 
 export default function SignupPage() {
@@ -24,9 +25,13 @@ export default function SignupPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (role === 'ORGANIZER' && secretCode !== 'TIMETRACK2026') {
-      showNotification('Invalid organizer access code', 'error');
-      return;
+    if (role === 'ORGANIZER') {
+      const supabase = createSupabaseBrowserClient();
+      const { data } = await supabase.from('organizer_codes').select('code').eq('code', secretCode).eq('is_active', true).single();
+      if (!data) {
+        showNotification('Invalid or expired organizer access code', 'error');
+        return;
+      }
     }
     setLoading(true);
     try {
@@ -35,6 +40,12 @@ export default function SignupPage() {
         full_name: fullName,
         status: 'ACTIVE',
       });
+      
+      if (role === 'ORGANIZER') {
+        const supabase = createSupabaseBrowserClient();
+        await supabase.from('organizer_codes').update({ is_active: false }).eq('code', secretCode);
+      }
+      
       showNotification('Account created! Please check your email to confirm.', 'success');
       router.push('/login');
     } catch (err: any) {

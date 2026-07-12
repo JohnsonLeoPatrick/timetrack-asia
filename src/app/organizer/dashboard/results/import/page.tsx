@@ -72,7 +72,7 @@ export default function ImportResultsPage() {
               required className="input-field mb-6"
             >
               <option value="">Choose an event...</option>
-              {(events || []).map(ev => (
+              {(events || []).map((ev: any) => (
                 <option key={ev.id} value={ev.id} disabled={ev.results_finalized}>
                   {ev.title} {ev.results_finalized ? '(Finalized)' : ''}
                 </option>

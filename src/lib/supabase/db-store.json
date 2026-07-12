@@ -1,0 +1,399 @@
+{
+  "events": [
+    {
+      "id": "evt_1",
+      "title": "Kuala Lumpur Marathon 2026",
+      "slug": "kl-marathon-2026",
+      "description": "The premier marathon event in Malaysia.",
+      "event_date": "2026-10-12T07:00:00Z",
+      "registration_open": "2026-06-01T00:00:00Z",
+      "registration_close": "2026-09-30T23:59:59Z",
+      "venue_name": "Dataran Merdeka",
+      "city": "Kuala Lumpur",
+      "status": "LIVE",
+      "deleted_at": null,
+      "organizer_id": "org_1",
+      "cover_image": "https://images.unsplash.com/photo-1502224562085-639556652f33?q=80&w=600&auto=format&fit=crop"
+    },
+    {
+      "id": "evt_2",
+      "title": "Penang Bridge International Bridge Run",
+      "slug": "penang-bridge-run-2026",
+      "description": "Run across the iconic Penang Bridge.",
+      "event_date": "2026-11-22T06:00:00Z",
+      "registration_open": "2026-06-15T00:00:00Z",
+      "registration_close": "2026-10-31T23:59:59Z",
+      "venue_name": "Queensbay Mall",
+      "city": "Penang",
+      "status": "LIVE",
+      "deleted_at": null,
+      "organizer_id": "org_1",
+      "cover_image": "https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?q=80&w=600&auto=format&fit=crop"
+    },
+    {
+      "id": "evt_3",
+      "title": "Melaka Ultra Challenge",
+      "slug": "melaka-ultra-2026",
+      "description": "Test your limits in historical Melaka.",
+      "event_date": "2026-05-15T05:00:00Z",
+      "registration_open": "2026-01-01T00:00:00Z",
+      "registration_close": "2026-04-30T23:59:59Z",
+      "venue_name": "Stadthuys",
+      "city": "Melaka",
+      "status": "COMPLETED",
+      "deleted_at": null,
+      "organizer_id": "org_1",
+      "cover_image": "https://images.unsplash.com/photo-1452626038306-9aae5e071dd3?q=80&w=600&auto=format&fit=crop"
+    },
+    {
+      "id": "eve_hgfbofu",
+      "created_at": "2026-07-10T06:43:15.900Z",
+      "title": "dwa",
+      "description": "wd",
+      "event_date": "2027-03-22T22:31",
+      "registration_open": "223132-03-21T03:22",
+      "registration_close": "213213-03-12T21:23",
+      "venue_name": "]]",
+      "address": "dwa",
+      "city": "sd",
+      "postcode": "",
+      "country": "Malaysia",
+      "max_participants": 2,
+      "bib_format": "RUN-####",
+      "terms_and_conditions": "",
+      "coupons_allowed": true,
+      "slug": "dwa-mrekk8cb",
+      "organizer_id": "usr_tn02g2c",
+      "status": "DRAFT"
+    },
+    {
+      "id": "eve_0aksohs",
+      "created_at": "2026-07-10T06:43:21.381Z",
+      "title": "dwa",
+      "description": "wd",
+      "event_date": "2027-03-22T22:31",
+      "registration_open": "223132-03-21T03:22",
+      "registration_close": "213213-03-12T21:23",
+      "venue_name": "]]",
+      "address": "dwa",
+      "city": "sd",
+      "postcode": "",
+      "country": "Malaysia",
+      "max_participants": 2,
+      "bib_format": "RUN-####",
+      "terms_and_conditions": "",
+      "coupons_allowed": true,
+      "slug": "dwa-mrekkckk",
+      "organizer_id": "usr_tn02g2c",
+      "status": "DRAFT"
+    },
+    {
+      "id": "eve_yi27ge6",
+      "created_at": "2026-07-10T06:43:30.994Z",
+      "title": "dwa",
+      "description": "wd",
+      "event_date": "2027-03-22T22:31",
+      "registration_open": "223132-03-21T03:22",
+      "registration_close": "213213-03-12T21:23",
+      "venue_name": "]]",
+      "address": "dwa",
+      "city": "sd",
+      "postcode": "",
+      "country": "Malaysia",
+      "max_participants": 2,
+      "bib_format": "RUN-####",
+      "terms_and_conditions": "",
+      "coupons_allowed": true,
+      "slug": "dwa-mrekkjzk",
+      "organizer_id": "usr_tn02g2c",
+      "status": "DRAFT"
+    },
+    {
+      "id": "eve_rfkh9za",
+      "created_at": "2026-07-10T06:43:38.846Z",
+      "title": "dwa",
+      "description": "wd",
+      "event_date": "2027-03-22T22:31",
+      "registration_open": "223132-03-21T03:22",
+      "registration_close": "213213-03-12T21:23",
+      "venue_name": "]]",
+      "address": "dwa",
+      "city": "sd",
+      "postcode": "",
+      "country": "Malaysia",
+      "max_participants": 2,
+      "bib_format": "RUN-####",
+      "terms_and_conditions": "",
+      "coupons_allowed": true,
+      "slug": "dwa-mrekkq1o",
+      "organizer_id": "usr_tn02g2c",
+      "status": "DRAFT"
+    },
+    {
+      "id": "eve_tccwzvf",
+      "created_at": "2026-07-10T06:43:52.152Z",
+      "title": "dwa",
+      "description": "wd",
+      "event_date": "2027-03-22T22:31",
+      "registration_open": "223132-03-21T03:22",
+      "registration_close": "213213-03-12T21:23",
+      "venue_name": "]]",
+      "address": "dwa",
+      "city": "sd",
+      "postcode": "",
+      "country": "Malaysia",
+      "max_participants": 2,
+      "bib_format": "RUN-####",
+      "terms_and_conditions": "",
+      "coupons_allowed": true,
+      "slug": "dwa-mrekl0bb",
+      "organizer_id": "usr_tn02g2c",
+      "status": "DRAFT"
+    },
+    {
+      "id": "eve_hhy1w9f",
+      "created_at": "2026-07-10T06:45:39.107Z",
+      "title": "dwa",
+      "description": "wd",
+      "event_date": "2027-03-22T22:31",
+      "registration_open": "223132-03-21T03:22",
+      "registration_close": "213213-03-12T21:23",
+      "venue_name": "]]",
+      "address": "dwa",
+      "city": "sd",
+      "postcode": "",
+      "country": "Malaysia",
+      "max_participants": 2,
+      "bib_format": "RUN-####",
+      "terms_and_conditions": "",
+      "coupons_allowed": true,
+      "slug": "dwa-mreknau9",
+      "organizer_id": "usr_tn02g2c",
+      "status": "DRAFT"
+    },
+    {
+      "id": "eve_auw6x8h",
+      "created_at": "2026-07-10T06:45:54.107Z",
+      "title": "dwa",
+      "description": "wd",
+      "event_date": "2027-03-22T22:31",
+      "registration_open": "223132-03-21T03:22",
+      "registration_close": "213213-03-12T21:23",
+      "venue_name": "]]",
+      "address": "dwa",
+      "city": "sd",
+      "postcode": "",
+      "country": "Malaysia",
+      "max_participants": 2,
+      "bib_format": "RUN-####",
+      "terms_and_conditions": "",
+      "coupons_allowed": true,
+      "slug": "dwa-mreknmey",
+      "organizer_id": "usr_tn02g2c",
+      "status": "DRAFT"
+    }
+  ],
+  "event_categories": [
+    {
+      "id": "cat_1",
+      "event_id": "evt_1",
+      "name": "Full Marathon (42km)",
+      "base_price": "120.00",
+      "max_slots": 1000
+    },
+    {
+      "id": "cat_2",
+      "event_id": "evt_1",
+      "name": "Half Marathon (21km)",
+      "base_price": "80.00",
+      "max_slots": 1500
+    },
+    {
+      "id": "cat_3",
+      "event_id": "evt_2",
+      "name": "10K Fun Run",
+      "base_price": "50.00",
+      "max_slots": 2000
+    },
+    {
+      "id": "cat_4",
+      "event_id": "evt_3",
+      "name": "50K Ultra",
+      "base_price": "220.00",
+      "max_slots": 300
+    },
+    {
+      "id": "eve_oi3hg1i",
+      "created_at": "2026-07-10T06:45:39.110Z",
+      "name": "123",
+      "description": "123",
+      "base_price": 2312,
+      "max_slots": 23,
+      "min_age": 213,
+      "max_age": 213,
+      "event_id": "eve_hhy1w9f"
+    },
+    {
+      "id": "eve_k32kl1o",
+      "created_at": "2026-07-10T06:45:54.112Z",
+      "name": "123",
+      "description": "123",
+      "base_price": 2312,
+      "max_slots": 23,
+      "min_age": 213,
+      "max_age": 213,
+      "event_id": "eve_auw6x8h"
+    }
+  ],
+  "registrations": [
+    {
+      "id": "reg_1",
+      "event_id": "evt_1",
+      "athlete_id": "user_test",
+      "category_id": "cat_1",
+      "bib_number": "1004",
+      "total_amount": "120.00",
+      "status": "CONFIRMED",
+      "created_at": "2026-06-18T10:00:00Z"
+    },
+    {
+      "id": "reg_2",
+      "event_id": "evt_2",
+      "athlete_id": "user_test",
+      "category_id": "cat_3",
+      "bib_number": "2055",
+      "total_amount": "50.00",
+      "status": "CONFIRMED",
+      "created_at": "2026-06-19T14:30:00Z"
+    },
+    {
+      "id": "reg_3",
+      "event_id": "evt_1",
+      "athlete_id": "user_1",
+      "category_id": "cat_2",
+      "bib_number": "2001",
+      "total_amount": "80.00",
+      "status": "CONFIRMED",
+      "created_at": "2026-06-18T11:00:00Z"
+    }
+  ],
+  "payments": [],
+  "participants": [],
+  "results": [
+    {
+      "id": "res_1",
+      "event_id": "evt_3",
+      "bib_number": "5001",
+      "athlete_name": "John Doe",
+      "finish_time": "04:12:35",
+      "overall_rank": 1,
+      "category_name": "50K Ultra",
+      "age_group": "Men Open"
+    },
+    {
+      "id": "res_2",
+      "event_id": "evt_3",
+      "bib_number": "5002",
+      "athlete_name": "Jane Smith",
+      "finish_time": "04:25:12",
+      "overall_rank": 2,
+      "category_name": "50K Ultra",
+      "age_group": "Women Open"
+    },
+    {
+      "id": "res_3",
+      "event_id": "evt_3",
+      "bib_number": "5003",
+      "athlete_name": "Ahmad bin Ali",
+      "finish_time": "04:38:40",
+      "overall_rank": 3,
+      "category_name": "50K Ultra",
+      "age_group": "Men Open"
+    }
+  ],
+  "coupons": [],
+  "users": [
+    {
+      "id": "org_1",
+      "email": "organizer@timetrack.asia",
+      "role": "ORGANIZER",
+      "status": "ACTIVE"
+    },
+    {
+      "id": "user_1",
+      "email": "athlete@timetrack.asia",
+      "role": "ATHLETE",
+      "status": "ACTIVE"
+    },
+    {
+      "id": "user_test",
+      "email": "test@gmail.com",
+      "role": "ATHLETE",
+      "status": "ACTIVE"
+    },
+    {
+      "id": "admin_test",
+      "email": "root@gmail.com",
+      "role": "ADMIN",
+      "status": "ACTIVE"
+    },
+    {
+      "id": "admin_test_2",
+      "email": "admin@gmail.com",
+      "role": "ADMIN",
+      "status": "ACTIVE"
+    }
+  ],
+  "audit_logs": [],
+  "email_queue": [],
+  "organizer_codes": [
+    {
+      "id": "org_6n6b32d",
+      "created_at": "2026-07-09T14:03:52.985Z",
+      "code": "ORG-K7GS4L",
+      "created_by": "admin_test_2"
+    },
+    {
+      "id": "org_sat6y7m",
+      "created_at": "2026-07-09T14:03:59.701Z",
+      "code": "ORG-9XIMZ1",
+      "created_by": "admin_test_2"
+    },
+    {
+      "id": "org_c2masjm",
+      "created_at": "2026-07-09T14:04:01.299Z",
+      "code": "ORG-VKGVP2",
+      "created_by": "admin_test_2"
+    },
+    {
+      "id": "org_5p7ddi2",
+      "created_at": "2026-07-09T14:04:02.762Z",
+      "code": "ORG-EDKQIR",
+      "created_by": "admin_test_2"
+    },
+    {
+      "id": "org_4g6qh7x",
+      "created_at": "2026-07-09T14:04:59.858Z",
+      "code": "ORG-KOKEQ7",
+      "created_by": "admin_test_2"
+    },
+    {
+      "id": "org_68n9zwg",
+      "created_at": "2026-07-09T14:09:05.018Z",
+      "code": "ORG-672LE9",
+      "created_by": "admin_test_2"
+    },
+    {
+      "id": "org_c7ad6kd",
+      "created_at": "2026-07-09T16:00:39.266Z",
+      "code": "ORG-KDRWQF",
+      "created_by": "admin_test_2"
+    },
+    {
+      "id": "org_5lbmxyy",
+      "created_at": "2026-07-10T07:13:14.179Z",
+      "code": "ORG-JUYG3U",
+      "created_by": "admin_test_2"
+    }
+  ]
+}

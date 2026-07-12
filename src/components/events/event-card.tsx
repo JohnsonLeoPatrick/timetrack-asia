@@ -1,5 +1,4 @@
-'use client';
-
+import { useState, useRef } from 'react';
 import Link from 'next/link';
 import { MapPin, Calendar, Tag } from 'lucide-react';
 import { useLanguage } from '@/providers/language-provider';
@@ -11,6 +10,29 @@ interface EventCardProps {
 
 export function EventCard({ event }: EventCardProps) {
   const { t } = useLanguage();
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [rotateX, setRotateX] = useState(0);
+  const [rotateY, setRotateY] = useState(0);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!cardRef.current) return;
+    const card = cardRef.current;
+    const rect = card.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    const rotateXValue = ((y - centerY) / centerY) * -12; // degrees max tilt
+    const rotateYValue = ((x - centerX) / centerX) * 12;
+    setRotateX(rotateXValue);
+    setRotateY(rotateYValue);
+  };
+
+  const handleMouseLeave = () => {
+    setRotateX(0);
+    setRotateY(0);
+  };
+
   const categories = event.event_categories || [];
   const minPrice = categories.length > 0
     ? Math.min(...categories.map(c => Number(c.base_price)))
@@ -31,7 +53,16 @@ export function EventCard({ event }: EventCardProps) {
 
   return (
     <Link href={`/events/${event.id}`}>
-      <div className="group glass rounded-2xl overflow-hidden hover:bg-white/[0.07] transition-all hover:scale-[1.02] h-full">
+      <div 
+        ref={cardRef}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        style={{
+          transform: `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.03, 1.03, 1.03)`,
+          transition: 'transform 0.1s ease-out, box-shadow 0.1s ease-out',
+        }}
+        className="group glass rounded-2xl overflow-hidden hover:bg-white/[0.07] hover:border-brand/35 hover:shadow-[0_20px_50px_rgba(204,255,0,0.15)] transition-all h-full"
+      >
         <div className="aspect-[16/9] relative overflow-hidden bg-white/5">
           {event.cover_image ? (
             <img

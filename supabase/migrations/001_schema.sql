@@ -154,7 +154,7 @@ CREATE TRIGGER trg_addon_options_updated_at BEFORE UPDATE ON addon_options FOR E
 -- 8. form_templates (v2)
 CREATE TABLE IF NOT EXISTS form_templates (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name VARCHAR(255) NOT NULL,
+    name VARCHAR(255) UNIQUE NOT NULL,
     description TEXT,
     organizer_id UUID REFERENCES users(id) ON DELETE SET NULL,
     is_system BOOLEAN DEFAULT FALSE,

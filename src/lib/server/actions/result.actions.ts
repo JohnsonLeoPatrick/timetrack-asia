@@ -62,7 +62,7 @@ export async function importResultsAction(eventId: string, formData: FormData) {
     .select('id, bib_number')
     .in('bib_number', results.map(r => r.bib_number));
 
-  const participantMap = new Map((participants || []).map(p => [p.bib_number, p.id]));
+  const participantMap = new Map((participants || []).map((p: any) => [p.bib_number, p.id]));
 
   const inserts = results
     .filter(r => participantMap.has(r.bib_number))

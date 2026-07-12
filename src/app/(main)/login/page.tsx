@@ -23,12 +23,12 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      await signIn(email, password);
+      const loggedInUser = await signIn(email, password);
       showNotification('Login successful!', 'success');
-      const role = user?.role;
+      const role = loggedInUser?.user_metadata?.role;
       if (role === 'ADMIN' || role === 'SUPER_ADMIN') router.push('/admin/dashboard');
       else if (role === 'ORGANIZER') router.push('/organizer/dashboard');
-      else router.push('/events');
+      else router.push('/profile');
     } catch (err: any) {
       showNotification(err.message || 'Login failed', 'error');
     } finally {

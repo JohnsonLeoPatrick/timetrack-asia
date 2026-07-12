@@ -134,208 +134,280 @@ export default function RegisterPage() {
   const totalSteps = 3;
 
   return (
-    <div className="min-h-screen pt-24 pb-16">
-      <div className="max-w-3xl mx-auto px-6">
+    <div className="min-h-screen lg:h-screen lg:overflow-hidden pt-24 pb-6 flex flex-col justify-between bg-black text-white">
+      <div className="max-w-5xl mx-auto px-6 w-full flex-1 flex flex-col justify-between h-full min-h-0">
+        
         {/* Steps indicator */}
-        <div className="flex items-center justify-center gap-3 mb-12">
+        <div className="flex items-center justify-center gap-3 mb-6 shrink-0">
           {[1, 2, 3].map(s => (
             <div key={s} className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-black transition-all ${
-                step >= s ? 'bg-brand text-black' : 'bg-white/5 text-white/30'
-              }`}>{step > s ? <Check size={16} /> : s}</div>
-              {s < totalSteps && <div className={`w-16 h-0.5 transition-all ${step > s ? 'bg-brand' : 'bg-white/10'}`} />}
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition-all ${
+                step >= s ? 'bg-brand text-black shadow-[0_0_15px_rgba(204,255,0,0.2)]' : 'bg-white/5 text-white/30'
+              }`}>{step > s ? <Check size={14} /> : s}</div>
+              {s < totalSteps && <div className={`w-12 h-0.5 transition-all ${step > s ? 'bg-brand' : 'bg-white/10'}`} />}
             </div>
           ))}
         </div>
 
-        <AnimatePresence mode="wait">
-          {step === 1 && (
-            <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-              <div className="text-center mb-10">
-                <h1 className="text-3xl font-display font-black uppercase tracking-tighter mb-2">{event.title}</h1>
-                <p className="text-xs text-white/30 font-bold uppercase tracking-widest">Step 1: Select Categories & Participants</p>
-              </div>
+        <div className="flex-1 min-h-0 flex flex-col justify-center">
+          <AnimatePresence mode="wait">
+            {step === 1 && (
+              <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+                className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-full items-stretch min-h-0"
+              >
+                {/* Left Side: Categories */}
+                <div className="lg:col-span-7 flex flex-col justify-between min-h-0">
+                  <div className="mb-4 shrink-0">
+                    <h1 className="text-2xl font-display font-black uppercase tracking-tighter text-white line-clamp-1">{event.title}</h1>
+                    <p className="text-[10px] text-white/30 font-bold uppercase tracking-widest mt-1">Select Categories & Add Participants</p>
+                  </div>
 
-              <div className="space-y-4">
-                {categories.map(cat => {
-                  const count = participants.filter(p => p.category_id === cat.id).length;
-                  const isFull = cat.max_slots && count >= cat.max_slots;
+                  <div className="flex-1 overflow-y-auto pr-2 space-y-3 min-h-0 max-h-[50vh] lg:max-h-[55vh]">
+                    {categories.map(cat => {
+                      const count = participants.filter(p => p.category_id === cat.id).length;
+                      const isFull = cat.max_slots && count >= cat.max_slots;
 
-                  return (
-                    <div key={cat.id} className="glass rounded-2xl p-6 flex items-center justify-between">
-                      <div>
-                        <h3 className="text-sm font-black uppercase tracking-tight">{cat.name}</h3>
-                        <p className="text-[10px] text-white/30 mt-1">
-                          {cat.description && `${cat.description} • `}
-                          RM{Number(cat.base_price).toFixed(2)}
-                          {cat.max_slots && ` • ${cat.max_slots - count} slots left`}
-                          {cat.min_age && ` • Min ${cat.min_age}yrs`}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        {count > 0 && (
-                          <span className="text-xs font-black text-brand">{count}x</span>
-                        )}
-                        <button onClick={() => handleAddParticipant(cat.id)} disabled={isFull}
-                          className={`px-5 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-full transition-all ${
-                            isFull ? 'bg-white/5 text-white/20 cursor-not-allowed' : 'bg-brand/10 text-brand hover:bg-brand/20'
-                          }`}
-                        >{isFull ? 'Full' : 'Add'}</button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {participants.length > 0 && (
-                <div className="mt-8 glass rounded-2xl p-6">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-4">
-                    Participants ({participants.length})
-                  </p>
-                  {participants.map((p, i) => {
-                    const cat = categories.find(c => c.id === p.category_id);
-                    return (
-                      <div key={i} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
-                        <div>
-                          <span className="text-xs font-black uppercase tracking-widest text-blue-500">{cat?.name}</span>
-                          <span className="ml-2 text-xs text-white/50">#{i + 1}</span>
+                      return (
+                        <div key={cat.id} className="glass rounded-xl p-4 flex items-center justify-between border border-white/5 hover:border-white/10 transition-colors">
+                          <div className="pr-4">
+                            <h3 className="text-xs font-black uppercase tracking-tight text-white">{cat.name}</h3>
+                            <p className="text-[9px] text-white/40 mt-1">
+                              {cat.description && `${cat.description} • `}
+                              RM{Number(cat.base_price).toFixed(2)}
+                              {cat.max_slots && ` • ${cat.max_slots - count} left`}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-3 shrink-0">
+                            {count > 0 && (
+                              <span className="text-xs font-black text-brand">{count}x</span>
+                            )}
+                            <button onClick={() => handleAddParticipant(cat.id)} disabled={isFull}
+                              className={`px-4 py-2 text-[9px] font-black uppercase tracking-widest rounded-full transition-all ${
+                                isFull ? 'bg-white/5 text-white/20 cursor-not-allowed' : 'bg-brand/10 text-brand hover:bg-brand/20'
+                              }`}
+                            >{isFull ? 'Full' : 'Add'}</button>
+                          </div>
                         </div>
-                        <button onClick={() => handleRemoveParticipant(i)}
-                          className="p-1 hover:bg-red-500/10 rounded-lg text-red-500/50 hover:text-red-500"
-                        ><X size={14} /></button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              <div className="mt-8 text-center">
-                <button onClick={() => setStep(2)} disabled={participants.length === 0}
-                  className="btn-primary text-sm disabled:opacity-30 disabled:cursor-not-allowed"
-                >Next: Billing <ArrowRight size={16} /></button>
-              </div>
-            </motion.div>
-          )}
-
-          {step === 2 && (
-            <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-              <div className="text-center mb-10">
-                <h1 className="text-3xl font-display font-black uppercase tracking-tighter mb-2">Billing Details</h1>
-                <p className="text-xs text-white/30 font-bold uppercase tracking-widest">Step 2: Enter your billing information</p>
-              </div>
-
-              <div className="glass rounded-2xl p-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="md:col-span-2">
-                    <label className="label-text">Full Name</label>
-                    <input type="text" value={billing.first_name} onChange={e => setBilling(p => ({ ...p, first_name: e.target.value }))}
-                      required className="input-field" placeholder="Your full name" />
-                  </div>
-                  <div>
-                    <label className="label-text">Email</label>
-                    <input type="email" value={billing.email} onChange={e => setBilling(p => ({ ...p, email: e.target.value }))}
-                      required className="input-field" placeholder="your@email.com" />
-                  </div>
-                  <div>
-                    <label className="label-text">Phone</label>
-                    <input type="tel" value={billing.phone} onChange={e => setBilling(p => ({ ...p, phone: e.target.value }))}
-                      required className="input-field" placeholder="+60XXXXXXXXX" />
-                  </div>
-                  <div>
-                    <label className="label-text">City</label>
-                    <input type="text" value={billing.city} onChange={e => setBilling(p => ({ ...p, city: e.target.value }))}
-                      className="input-field" placeholder="City" />
-                  </div>
-                  <div>
-                    <label className="label-text">Postcode</label>
-                    <input type="text" value={billing.postcode} onChange={e => setBilling(p => ({ ...p, postcode: e.target.value }))}
-                      className="input-field" placeholder="Postcode" />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="label-text">Country</label>
-                    <select value={billing.country} onChange={e => setBilling(p => ({ ...p, country: e.target.value }))}
-                      className="input-field">
-                      <option value="Malaysia">Malaysia</option>
-                      <option value="Singapore">Singapore</option>
-                      <option value="Indonesia">Indonesia</option>
-                      <option value="Thailand">Thailand</option>
-                      <option value="Other">Other</option>
-                    </select>
+                      );
+                    })}
                   </div>
                 </div>
-              </div>
 
-              <div className="mt-8 flex items-center justify-center gap-4">
-                <button onClick={() => setStep(1)} className="btn-secondary text-sm"><ArrowLeft size={16} /> Back</button>
-                <button onClick={() => setStep(3)} disabled={!billing.first_name || !billing.email || !billing.phone}
-                  className="btn-primary text-sm disabled:opacity-30 disabled:cursor-not-allowed"
-                >Next: Review <ArrowRight size={16} /></button>
-              </div>
-            </motion.div>
-          )}
+                {/* Right Side: Added list */}
+                <div className="lg:col-span-5 flex flex-col justify-between min-h-0">
+                  <div className="flex-1 glass rounded-2xl p-5 flex flex-col justify-between min-h-0 border border-white/5">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-3 shrink-0">
+                      Added Participants ({participants.length})
+                    </p>
 
-          {step === 3 && (
-            <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-              <div className="text-center mb-10">
-                <h1 className="text-3xl font-display font-black uppercase tracking-tighter mb-2">Review & Pay</h1>
-                <p className="text-xs text-white/30 font-bold uppercase tracking-widest">Step 3: Review your registration</p>
-              </div>
-
-              {/* Coupon */}
-              <div className="glass rounded-2xl p-6 mb-6">
-                <div className="flex items-center gap-3">
-                  <Tag size={16} className="text-brand" />
-                  <input type="text" value={couponCode} onChange={e => { setCouponCode(e.target.value); setCouponResult(null); setCouponError(''); }}
-                    className="flex-1 bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-sm outline-none focus:border-brand/50 transition-all"
-                    placeholder="Enter coupon code" />
-                  <button onClick={handleApplyCoupon} disabled={!couponCode.trim() || validateCoupon.isPending}
-                    className="btn-primary !py-3 text-[10px] disabled:opacity-30"
-                  >{validateCoupon.isPending ? <Loader2 size={14} className="animate-spin" /> : 'Apply'}</button>
-                </div>
-                {couponResult && <p className="mt-2 text-[10px] text-green-500 font-bold">Coupon applied! -RM{Number(couponResult.discount_amount).toFixed(2)}</p>}
-                {couponError && <p className="mt-2 text-[10px] text-red-500 font-bold">{couponError}</p>}
-              </div>
-
-              {/* Order Summary */}
-              <div className="glass rounded-2xl p-6 mb-6">
-                <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-4">Order Summary</p>
-                {participants.map((p, i) => {
-                  const cat = categories.find(c => c.id === p.category_id);
-                  return (
-                    <div key={i} className="flex items-center justify-between py-2 border-b border-white/5">
-                      <span className="text-xs text-white/70">{cat?.name} x 1</span>
-                      <span className="text-xs font-bold">RM{Number(cat?.base_price || 0).toFixed(2)}</span>
+                    <div className="flex-1 overflow-y-auto pr-1 space-y-2.5 min-h-0 max-h-[40vh] lg:max-h-[48vh]">
+                      {participants.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center text-center py-10 opacity-30">
+                          <p className="text-[10px] font-black uppercase tracking-widest">No participants added</p>
+                        </div>
+                      ) : (
+                        participants.map((p, i) => {
+                          const cat = categories.find(c => c.id === p.category_id);
+                          return (
+                            <div key={i} className="flex items-center justify-between p-3 bg-white/[0.02] border border-white/5 rounded-xl">
+                              <div className="min-w-0 pr-2">
+                                <p className="text-xs font-black uppercase tracking-tight text-white/90 truncate">{cat?.name}</p>
+                                <span className="text-[9px] font-bold text-brand uppercase tracking-wider mt-0.5 block">Slot #{i + 1}</span>
+                              </div>
+                              <button onClick={() => handleRemoveParticipant(i)}
+                                className="p-1.5 hover:bg-red-500/10 rounded-lg text-red-500/50 hover:text-red-500 transition-colors shrink-0"
+                              ><X size={12} /></button>
+                            </div>
+                          );
+                        })
+                      )}
                     </div>
-                  );
-                })}
-                <div className="flex items-center justify-between py-2 mt-2">
-                  <span className="text-xs text-white/30">Subtotal</span>
-                  <span className="text-xs">RM{totalAmount.toFixed(2)}</span>
-                </div>
-                {discountAmount > 0 && (
-                  <div className="flex items-center justify-between py-2">
-                    <span className="text-xs text-green-500">Discount</span>
-                    <span className="text-xs text-green-500">-RM{discountAmount.toFixed(2)}</span>
                   </div>
-                )}
-                <div className="flex items-center justify-between py-3 border-t border-white/10 mt-2">
-                  <span className="text-sm font-black uppercase tracking-tight">Total</span>
-                  <span className="text-lg font-black text-brand">RM{netAmount.toFixed(2)}</span>
-                </div>
-              </div>
 
-              <div className="flex items-center justify-center gap-4">
-                <button onClick={() => setStep(2)} className="btn-secondary text-sm"><ArrowLeft size={16} /> Back</button>
-                <button onClick={handleSubmit} disabled={submitting}
-                  className="btn-primary text-sm disabled:opacity-30"
-                >
-                  {submitting ? <Loader2 size={16} className="animate-spin" /> : null}
-                  {submitting ? 'Processing...' : netAmount > 0 ? `Pay RM${netAmount.toFixed(2)}` : 'Complete Registration'}
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                  <div className="mt-4 shrink-0 flex justify-end">
+                    <button onClick={() => setStep(2)} disabled={participants.length === 0}
+                      className="btn-primary text-[10px] !py-3.5 !px-8 disabled:opacity-30 disabled:cursor-not-allowed font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-2 shadow-[0_0_20px_rgba(204,255,0,0.15)]"
+                    >Next: Billing <ArrowRight size={14} /></button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {step === 2 && (
+              <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+                className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-full items-stretch min-h-0"
+              >
+                {/* Left Side: Summary info */}
+                <div className="lg:col-span-4 flex flex-col justify-between">
+                  <div>
+                    <h1 className="text-2xl font-display font-black uppercase tracking-tighter text-white">Billing Info</h1>
+                    <p className="text-[10px] text-white/30 font-bold uppercase tracking-widest mt-1">Step 2: Enter payment details</p>
+                    <div className="glass rounded-xl p-5 mt-6 border border-white/5">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-2">Order summary</p>
+                      <div className="flex justify-between py-1">
+                        <span className="text-xs text-white/50">Participants</span>
+                        <span className="text-xs font-black text-white">{participants.length}</span>
+                      </div>
+                      <div className="flex justify-between py-1 border-t border-white/5 mt-2 pt-2">
+                        <span className="text-xs text-white/50">Estimated Total</span>
+                        <span className="text-xs font-black text-brand">RM{totalAmount.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Side: Form */}
+                <div className="lg:col-span-8 flex flex-col justify-between min-h-0">
+                  <div className="glass rounded-2xl p-6 border border-white/5 overflow-y-auto max-h-[50vh] lg:max-h-[55vh] space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="col-span-2">
+                        <label className="label-text text-[9px]">Full Name</label>
+                        <input type="text" value={billing.first_name} onChange={e => setBilling(p => ({ ...p, first_name: e.target.value }))}
+                          required className="input-field !py-2.5 text-xs" placeholder="Your full name" />
+                      </div>
+                      <div>
+                        <label className="label-text text-[9px]">Email</label>
+                        <input type="email" value={billing.email} onChange={e => setBilling(p => ({ ...p, email: e.target.value }))}
+                          required className="input-field !py-2.5 text-xs" placeholder="your@email.com" />
+                      </div>
+                      <div>
+                        <label className="label-text text-[9px]">Phone</label>
+                        <input type="tel" value={billing.phone} onChange={e => setBilling(p => ({ ...p, phone: e.target.value }))}
+                          required className="input-field !py-2.5 text-xs" placeholder="+60XXXXXXXXX" />
+                      </div>
+                      <div>
+                        <label className="label-text text-[9px]">City</label>
+                        <input type="text" value={billing.city} onChange={e => setBilling(p => ({ ...p, city: e.target.value }))}
+                          className="input-field !py-2.5 text-xs" placeholder="City" />
+                      </div>
+                      <div>
+                        <label className="label-text text-[9px]">Postcode</label>
+                        <input type="text" value={billing.postcode} onChange={e => setBilling(p => ({ ...p, postcode: e.target.value }))}
+                          className="input-field !py-2.5 text-xs" placeholder="Postcode" />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="label-text text-[9px]">Country</label>
+                        <select value={billing.country} onChange={e => setBilling(p => ({ ...p, country: e.target.value }))}
+                          className="input-field !py-2.5 text-xs">
+                          <option value="Malaysia">Malaysia</option>
+                          <option value="Singapore">Singapore</option>
+                          <option value="Indonesia">Indonesia</option>
+                          <option value="Thailand">Thailand</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex items-center justify-end gap-3 shrink-0">
+                    <button onClick={() => setStep(1)} className="btn-secondary text-[10px] !py-3 !px-6 border-white/10 rounded-xl"><ArrowLeft size={12} /> Back</button>
+                    <button onClick={() => setStep(3)} disabled={!billing.first_name || !billing.email || !billing.phone}
+                      className="btn-primary text-[10px] !py-3 !px-6 disabled:opacity-30 disabled:cursor-not-allowed font-black rounded-xl"
+                    >Next: Review <ArrowRight size={12} /></button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {step === 3 && (
+              <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+                className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-full items-stretch min-h-0"
+              >
+                {/* Left Side: Coupon */}
+                <div className="lg:col-span-5 flex flex-col justify-between">
+                  <div>
+                    <h1 className="text-2xl font-display font-black uppercase tracking-tighter text-white">Review Order</h1>
+                    <p className="text-[10px] text-white/30 font-bold uppercase tracking-widest mt-1">Step 3: Apply Coupon & Pay</p>
+                    
+                    <div className="glass rounded-xl p-5 mt-6 border border-white/5">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-3">Apply Coupon Code</p>
+                      <div className="flex items-center gap-2">
+                        <input type="text" value={couponCode} onChange={e => { setCouponCode(e.target.value); setCouponResult(null); setCouponError(''); }}
+                          className="flex-1 bg-white/5 border border-white/10 rounded-xl py-2 px-3 text-xs outline-none focus:border-brand/40 transition-all text-white"
+                          placeholder="Coupon code" />
+                        <button onClick={handleApplyCoupon} disabled={!couponCode.trim() || validateCoupon.isPending}
+                          className="btn-primary !py-2 !px-4 text-[9px] rounded-lg disabled:opacity-30"
+                        >{validateCoupon.isPending ? <Loader2 size={12} className="animate-spin" /> : 'Apply'}</button>
+                      </div>
+                      {couponResult && <p className="mt-2 text-[9px] text-green-500 font-bold">Applied! -RM{Number(couponResult.discount_amount).toFixed(2)}</p>}
+                      {couponError && <p className="mt-2 text-[9px] text-red-500 font-bold">{couponError}</p>}
+                    </div>
+
+                    <div className="glass rounded-xl p-5 mt-4 border border-white/5 space-y-2.5">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-white/30">Billing Details</p>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <span className="text-white/40 block text-[9px] uppercase">Name</span>
+                          <span className="text-white font-bold">{billing.first_name}</span>
+                        </div>
+                        <div>
+                          <span className="text-white/40 block text-[9px] uppercase">Phone</span>
+                          <span className="text-white font-bold">{billing.phone}</span>
+                        </div>
+                        <div className="col-span-2">
+                          <span className="text-white/40 block text-[9px] uppercase">Email</span>
+                          <span className="text-white font-bold break-all">{billing.email}</span>
+                        </div>
+                        <div className="col-span-2">
+                          <span className="text-white/40 block text-[9px] uppercase">Address</span>
+                          <span className="text-white font-bold">
+                            {billing.city && `${billing.city}, `}{billing.postcode && `${billing.postcode}, `}{billing.country}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Side: Total Summary & Payment */}
+                <div className="lg:col-span-7 flex flex-col justify-between min-h-0">
+                  <div className="glass rounded-2xl p-6 border border-white/5 flex-1 flex flex-col justify-between min-h-0 max-h-[50vh] lg:max-h-[55vh]">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-3 shrink-0">Order Summary</p>
+                    
+                    <div className="flex-1 overflow-y-auto space-y-2 pr-1 border-b border-white/5 pb-3 mb-3">
+                      {participants.map((p, i) => {
+                        const cat = categories.find(c => c.id === p.category_id);
+                        return (
+                          <div key={i} className="flex items-center justify-between py-1 text-xs">
+                            <span className="text-white/60">{cat?.name} (Slot #{i + 1})</span>
+                            <span className="font-bold">RM{Number(cat?.base_price || 0).toFixed(2)}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="space-y-1.5 shrink-0">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-white/40">Subtotal</span>
+                        <span>RM{totalAmount.toFixed(2)}</span>
+                      </div>
+                      {discountAmount > 0 && (
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-green-500">Discount</span>
+                          <span className="text-green-500">-RM{discountAmount.toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between py-2 border-t border-white/10 mt-2">
+                        <span className="text-xs font-black uppercase tracking-tight">Net Total</span>
+                        <span className="text-base font-black text-brand">RM{netAmount.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex items-center justify-end gap-3 shrink-0">
+                    <button onClick={() => setStep(2)} className="btn-secondary text-[10px] !py-3 !px-6 border-white/10 rounded-xl"><ArrowLeft size={12} /> Back</button>
+                    <button onClick={handleSubmit} disabled={submitting}
+                      className="btn-primary text-[10px] !py-3.5 !px-8 disabled:opacity-30 rounded-xl font-black uppercase tracking-widest shadow-[0_0_20px_rgba(204,255,0,0.2)]"
+                    >
+                      {submitting ? <Loader2 size={12} className="animate-spin shrink-0" /> : null}
+                      {submitting ? 'Processing...' : netAmount > 0 ? `Pay RM${netAmount.toFixed(2)}` : 'Complete'}
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   );

@@ -4,7 +4,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, X, GripVertical, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { createEventAction } from '@/lib/server/actions/event.actions';
+import { useCreateEvent } from '@/hooks/use-events';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import slugify from 'slugify';
 
 interface Category {
   id: string;
@@ -18,8 +20,11 @@ interface Category {
 
 export default function EventForgePage() {
   const router = useRouter();
+  const { mutateAsync: createEvent } = useCreateEvent();
   const [submitting, setSubmitting] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState<string>('');
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -36,6 +41,14 @@ export default function EventForgePage() {
     terms_and_conditions: '',
     coupons_allowed: false,
   });
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setCoverFile(file);
+      setCoverPreview(URL.createObjectURL(file));
+    }
+  };
 
   const addCategory = () => {
     setCategories(prev => [...prev, {
@@ -62,12 +75,54 @@ export default function EventForgePage() {
     setSubmitting(true);
 
     try {
-      const fd = new FormData();
-      Object.entries(formData).forEach(([key, value]) => fd.append(key, String(value)));
-      fd.append('categories', JSON.stringify(categories.map(({ id, ...rest }) => rest)));
+      let cover_image = null;
+      
+      if (coverFile) {
+        const supabase = createSupabaseBrowserClient();
+        const fileExt = coverFile.name.split('.').pop();
+        const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('events')
+          .upload(fileName, coverFile);
+          
+        if (uploadError) {
+          throw new Error(`Failed to upload cover image: ${uploadError.message}`);
+        }
+        
+        const { data: { publicUrl } } = supabase.storage
+          .from('events')
+          .getPublicUrl(fileName);
+          
+        cover_image = publicUrl;
+      }
 
-      await createEventAction(fd);
+      const slug = slugify(formData.title, { lower: true, strict: true }) + '-' + Date.now().toString(36);
+      const parsedData = {
+        ...formData,
+        slug,
+        cover_image,
+        status: 'DRAFT' as const,
+        deleted_at: null,
+        max_participants: formData.max_participants ? Number(formData.max_participants) : null,
+      };
+
+      const event = await createEvent(parsedData);
+      
+      if (event && event.id && categories.length > 0) {
+        const supabase = createSupabaseBrowserClient();
+        const catsToInsert = categories.map(({ id, ...rest }) => ({ ...rest, event_id: event.id }));
+        const { error: catError } = await supabase.from('event_categories').insert(catsToInsert);
+        if (catError) {
+          console.error('Failed to insert categories:', catError);
+          toast.error('Event created but failed to save categories');
+        }
+      }
+      
       toast.success('Event created successfully');
+      if (event && event.id) {
+        router.push(`/organizer/dashboard/events/${event.id}`);
+      }
     } catch (error) {
       toast.error((error as Error).message);
     } finally {
@@ -92,6 +147,38 @@ export default function EventForgePage() {
           <section className="glass rounded-2xl p-8">
             <h2 className="text-sm font-black uppercase tracking-widest text-white/30 mb-6">Basic Information</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="md:col-span-2">
+                <label className="label-text">Event Cover Image</label>
+                <div className="mt-2 flex items-center gap-6">
+                  {coverPreview ? (
+                    <div className="relative w-40 h-24 rounded-lg overflow-hidden border border-white/10 bg-white/5">
+                      <img src={coverPreview} alt="Preview" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => { setCoverFile(null); setCoverPreview(''); }}
+                        className="absolute top-1 right-1 p-1 bg-black/80 rounded-full hover:bg-black text-red-400 transition-colors"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-40 h-24 rounded-lg border-2 border-dashed border-white/10 flex flex-col items-center justify-center text-white/40 hover:text-white hover:border-blue-500/50 transition-all cursor-pointer relative">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileChange}
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                      />
+                      <Plus size={16} className="mb-1" />
+                      <span className="text-[9px] font-black uppercase tracking-wider">Upload Cover</span>
+                    </div>
+                  )}
+                  <div className="text-left">
+                    <p className="text-[10px] font-bold text-white/50 uppercase tracking-wider">Select a banner or cover photo</p>
+                    <p className="text-[8px] text-white/30 uppercase tracking-widest mt-1">PNG, JPG, or WEBP up to 5MB</p>
+                  </div>
+                </div>
+              </div>
               <div className="md:col-span-2">
                 <label className="label-text">Event Title</label>
                 <input type="text" value={formData.title} onChange={e => updateField('title', e.target.value)}

@@ -104,7 +104,7 @@
 
 @layer components {
   .glass {
-    @apply bg-white/5 border border-white/10 backdrop-blur-xl;
+    @apply bg-[#0f0f0f] border border-white/10;
   }
 
   .btn-primary {

@@ -43,6 +43,8 @@ const translations: Record<Language, Record<string, string>> = {
     'about.hero.desc': 'We are dedicated to simplifying sports through technology.',
     'about.mission.title': 'Our Mission',
     'about.mission.desc': 'Time Track is a modern platform designed to make sports event management easier for everyone.',
+    'about.features.subtitle': 'WHAT WE DO',
+    'about.features.title': 'OUR FEATURES',
     'footer.explore': 'Explore',
     'footer.policy': 'Our Policy',
     'footer.privacy': 'Privacy Policy',

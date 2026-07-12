@@ -61,7 +61,7 @@ function UsersTab() {
     },
   });
 
-  const filtered = (users || []).filter(u => {
+  const filtered = (users || []).filter((u: any) => {
     const matchesSearch = u.email?.toLowerCase().includes(search.toLowerCase());
     const matchesRole = roleFilter === 'ALL' || u.role === roleFilter;
     return matchesSearch && matchesRole;
@@ -103,7 +103,7 @@ function UsersTab() {
             ) : filtered.length === 0 ? (
               <tr><td colSpan={5} className="p-8 text-center text-xs text-white/20">No users found</td></tr>
             ) : (
-              filtered.map(u => (
+              filtered.map((u: any) => (
                 <tr key={u.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                   <td className="p-4">
                     <span className="text-sm font-bold">{u.email}</span>
@@ -183,7 +183,7 @@ function AuditTab() {
             ) : !logs || logs.length === 0 ? (
               <tr><td colSpan={5} className="p-8 text-center text-xs text-white/20">No audit logs recorded yet</td></tr>
             ) : (
-              (logs || []).map(log => (
+              (logs || []).map((log: any) => (
                 <tr key={log.id} className="border-b border-white/5 hover:bg-white/5 transition-colors font-mono">
                   <td className="p-4 text-[10px] text-white/30">{new Date(log.created_at).toLocaleString()}</td>
                   <td className="p-4 text-[10px] text-white/50">{log.users?.email || 'System'}</td>

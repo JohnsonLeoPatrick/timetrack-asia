@@ -1,48 +1,57 @@
 'use client';
 
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'next/navigation';
 import { motion } from 'motion/react';
 import {
   Activity, Users, Calendar, DollarSign, Clock, AlertTriangle,
-  Search, Ban, Trash2, CheckCircle, XCircle, Loader2,
+  Search, Ban, Trash2, CheckCircle, XCircle, Loader2, Key, Plus, X
 } from 'lucide-react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { adminToggleUserStatusAction, adminUpdateUserRoleAction, generateOrganizerCodeAction, adminCreateUserAction } from '@/lib/server/actions/admin.actions';
+import { adminUpdateEventStatusAction } from '@/lib/server/actions/event.actions';
+import { toast } from 'sonner';
 
-type Tab = 'overview' | 'users' | 'events' | 'payments' | 'settings';
+type Tab = 'overview' | 'users' | 'events' | 'payments' | 'codes' | 'settings';
 
 export default function AdminDashboardPage() {
-  const [tab, setTab] = useState<Tab>('overview');
+  const searchParams = useSearchParams();
+  const tab = (searchParams.get('tab') as Tab) || 'overview';
+
   const supabase = createSupabaseBrowserClient();
 
   const { data: stats, isLoading } = useQuery({
     queryKey: ['admin-stats'],
     queryFn: async () => {
-      const [events, users, regs, payments] = await Promise.all([
-        supabase.from('events').select('*', { count: 'exact', head: true }),
-        supabase.from('users').select('*', { count: 'exact', head: true }),
+      const [events, users, regs] = await Promise.all([
+        supabase.from('events').select('*'),
+        supabase.from('users').select('*'),
         supabase.from('registrations').select('total_amount, status'),
-        supabase.from('payments').select('amount, status'),
       ]);
+      const now = new Date();
       return {
-        totalEvents: events.count || 0, totalUsers: users.count || 0,
-        totalRegistrations: regs.data?.length || 0,
-        totalRevenue: regs.data?.filter(r => r.status === 'PAID').reduce((s, r) => s + Number(r.total_amount), 0) || 0,
-        pendingPayments: payments.data?.filter(p => p.status === 'PENDING_REVIEW').length || 0,
-        failedPayments: payments.data?.filter(p => p.status === 'FAILED').length || 0,
+        totalUsers: users.data?.length || 0,
+        totalOrganizers: users.data?.filter((u: any) => u.role === 'ORGANIZER').length || 0,
+        activeEvents: events.data?.filter((e: any) => e.status === 'LIVE').length || 0,
+        upcomingEvents: events.data?.filter((e: any) => new Date(e.event_date) > now).length || 0,
+        ticketsSold: regs.data?.filter((r: any) => r.status === 'CONFIRMED').length || 0,
+        totalRevenue: regs.data?.filter((r: any) => r.status === 'CONFIRMED' || r.status === 'PAID').reduce((s: number, r: any) => s + Number(r.total_amount), 0) || 0,
+        pendingEvents: events.data?.filter((e: any) => e.status === 'PENDING').length || 0,
       };
     },
     staleTime: 30_000,
   });
 
   const statsCards = [
-    { label: 'Live Events', value: stats?.totalEvents || 0, icon: Calendar, color: 'text-brand' },
     { label: 'Total Users', value: stats?.totalUsers || 0, icon: Users, color: 'text-blue-500' },
-    { label: 'Total Regs', value: stats?.totalRegistrations || 0, icon: Activity, color: 'text-green-500' },
+    { label: 'Total Organizers', value: stats?.totalOrganizers || 0, icon: Users, color: 'text-purple-500' },
+    { label: 'Active Events', value: stats?.activeEvents || 0, icon: Activity, color: 'text-green-500' },
+    { label: 'Upcoming Events', value: stats?.upcomingEvents || 0, icon: Calendar, color: 'text-brand' },
+    { label: 'Tickets Sold', value: stats?.ticketsSold || 0, icon: CheckCircle, color: 'text-indigo-500' },
     { label: 'Revenue (MYR)', value: `RM${(stats?.totalRevenue || 0).toLocaleString()}`, icon: DollarSign, color: 'text-yellow-500' },
-    { label: 'Pending Review', value: stats?.pendingPayments || 0, icon: Clock, color: 'text-orange-500' },
-    { label: 'Failed Payments', value: stats?.failedPayments || 0, icon: AlertTriangle, color: 'text-red-500' },
+    { label: 'Pending Approvals', value: stats?.pendingEvents || 0, icon: AlertTriangle, color: 'text-orange-500' },
   ];
 
   return (
@@ -54,13 +63,6 @@ export default function AdminDashboardPage() {
             <h1 className="text-lg font-display font-black uppercase tracking-tighter">
               ADMIN <span className="text-red-500">DASHBOARD</span>
             </h1>
-            <div className="flex items-center gap-2">
-              {['overview', 'users', 'events', 'payments', 'settings'].map(t => (
-                <button key={t} onClick={() => setTab(t as Tab)}
-                  className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-full transition-all ${tab === t ? 'bg-red-500/10 text-red-500' : 'text-white/30 hover:text-white/50'}`}
-                >{t}</button>
-              ))}
-            </div>
           </div>
         </header>
         <div className="p-8">
@@ -68,6 +70,7 @@ export default function AdminDashboardPage() {
           {tab === 'users' && <UsersTab />}
           {tab === 'events' && <EventsTab />}
           {tab === 'payments' && <div className="text-center py-20"><p className="text-xs text-white/20">Payment management coming soon</p></div>}
+          {tab === 'codes' && <AccessCodesTab />}
           {tab === 'settings' && <SettingsTab />}
         </div>
       </div>
@@ -97,22 +100,158 @@ function OverviewTab({ stats, loading }: { stats: any[]; loading: boolean }) {
 function UsersTab() {
   const supabase = createSupabaseBrowserClient();
   const [search, setSearch] = useState('');
-  const { data: users, isLoading } = useQuery({
+  const [showCreate, setShowCreate] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [currentUserRole, setCurrentUserRole] = useState<string>('');
+  
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [role, setRole] = useState<'SUPER_ADMIN' | 'ADMIN' | 'ORGANIZER' | 'ATHLETE'>('ORGANIZER');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [phone, setPhone] = useState('');
+
+  const { data: users, isLoading, refetch } = useQuery({
     queryKey: ['admin-users'],
     queryFn: async () => {
       const { data } = await supabase.from('users').select('id, email, role, status, first_name, last_name, created_at').order('created_at', { ascending: false });
       return data || [];
     },
   });
-  const filtered = (users || []).filter(u => u.email?.toLowerCase().includes(search.toLowerCase()));
+
+  useEffect(() => {
+    supabase.auth.getUser().then((res: any) => {
+      const user = res.data?.user;
+      if (user) {
+        setCurrentUserRole(user.user_metadata?.role || 'ADMIN');
+      }
+    });
+  }, []);
+  
+  const handleCreateSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password || !firstName || !lastName) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+    setCreating(true);
+    try {
+      await adminCreateUserAction(email, password, role, firstName, lastName, phone);
+      toast.success('User created successfully');
+      setShowCreate(false);
+      setEmail('');
+      setPassword('');
+      setFirstName('');
+      setLastName('');
+      setPhone('');
+      refetch();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to create user');
+    } finally {
+      setCreating(false);
+    }
+  };
+  
+  const handleBanUser = async (id: string) => {
+    if (!confirm('Are you sure you want to ban this user?')) return;
+    await adminToggleUserStatusAction(id, 'BANNED');
+    await supabase.from('users').eq('id', id).update({ status: 'BANNED' });
+    refetch();
+  };
+
+  const handleRemoveOrganizer = async (id: string) => {
+    if (!confirm('Are you sure you want to remove organizer privileges from this user?')) return;
+    await adminUpdateUserRoleAction(id, 'ATHLETE');
+    await supabase.from('users').eq('id', id).update({ role: 'ATHLETE' });
+    refetch();
+  };
+
+  const filtered = (users || []).filter((u: any) => u.email?.toLowerCase().includes(search.toLowerCase()));
+
+  const roleOptions = currentUserRole === 'SUPER_ADMIN'
+    ? ['ATHLETE', 'ORGANIZER', 'ADMIN', 'SUPER_ADMIN']
+    : ['ATHLETE', 'ORGANIZER'];
 
   return (
     <div>
-      <div className="relative max-w-md mb-6">
-        <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20" />
-        <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search users..."
-          className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm outline-none focus:border-red-500/50 transition-all" />
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 mb-6">
+        <div className="relative flex-1 max-w-md">
+          <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20" />
+          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search users..."
+            className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm outline-none focus:border-red-500/50 transition-all" />
+        </div>
+        <button
+          onClick={() => setShowCreate(true)}
+          className="btn-primary text-xs flex items-center justify-center gap-2 whitespace-nowrap"
+        >
+          <Plus size={14} /> Create User
+        </button>
       </div>
+
+      {showCreate && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="glass rounded-[2rem] border border-white/10 bg-[#0f0f0f] w-full max-w-md p-8 relative">
+            <button
+              onClick={() => setShowCreate(false)}
+              className="absolute top-6 right-6 text-white/40 hover:text-white transition-colors"
+            >
+              <X size={16} />
+            </button>
+            <h3 className="text-xl font-display font-black uppercase tracking-tight mb-6">Create New User</h3>
+            
+            <form onSubmit={handleCreateSubmit} className="space-y-4">
+              <div>
+                <label className="label-text">First Name *</label>
+                <input type="text" required value={firstName} onChange={e => setFirstName(e.target.value)} className="input-field" placeholder="e.g. John" />
+              </div>
+              
+              <div>
+                <label className="label-text">Last Name *</label>
+                <input type="text" required value={lastName} onChange={e => setLastName(e.target.value)} className="input-field" placeholder="e.g. Doe" />
+              </div>
+              
+              <div>
+                <label className="label-text">Email Address *</label>
+                <input type="email" required value={email} onChange={e => setEmail(e.target.value)} className="input-field" placeholder="e.g. user@domain.com" />
+              </div>
+              
+              <div>
+                <label className="label-text">Password *</label>
+                <input type="password" required value={password} onChange={e => setPassword(e.target.value)} className="input-field" placeholder="••••••••" />
+              </div>
+              
+              <div>
+                <label className="label-text">Phone Number</label>
+                <input type="text" value={phone} onChange={e => setPhone(e.target.value)} className="input-field" placeholder="e.g. +60123456789" />
+              </div>
+
+              <div>
+                <label className="label-text">Account Role *</label>
+                <select
+                  value={role}
+                  onChange={e => setRole(e.target.value as any)}
+                  className="input-field"
+                >
+                  {roleOptions.map(r => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <button type="submit" disabled={creating} className="btn-primary text-xs flex-1">
+                  {creating ? <Loader2 size={12} className="animate-spin mr-1" /> : null}
+                  Create Account
+                </button>
+                <button type="button" onClick={() => setShowCreate(false)} className="btn-secondary text-xs">
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <div className="glass rounded-2xl overflow-hidden">
         <table className="w-full">
           <thead>
@@ -127,18 +266,78 @@ function UsersTab() {
           <tbody>
             {isLoading ? <tr><td colSpan={5} className="p-8 text-center"><Loader2 size={20} className="animate-spin mx-auto text-red-500" /></td></tr> :
               filtered.length === 0 ? <tr><td colSpan={5} className="p-8 text-center text-xs text-white/20">No users found</td></tr> :
-              filtered.map(u => (
+              filtered.map((u: any) => (
                 <tr key={u.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                   <td className="p-4"><span className="text-sm font-bold">{u.email}</span></td>
                   <td className="p-4"><span className="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-full bg-red-500/10 text-red-500">{u.role}</span></td>
                   <td className="p-4"><span className={`text-[10px] font-black uppercase tracking-widest ${u.status === 'ACTIVE' ? 'text-green-500' : 'text-red-500'}`}>{u.status}</span></td>
-                  <td className="p-4 text-[10px] text-white/30">{new Date(u.created_at).toLocaleDateString()}</td>
+                  <td className="p-4 text-[10px] text-white/30">{new Date(u.created_at || new Date()).toLocaleDateString()}</td>
                   <td className="p-4 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <button className="p-2 hover:bg-yellow-500/10 rounded-lg text-yellow-500/50 hover:text-yellow-500"><Ban size={14} /></button>
-                      <button className="p-2 hover:bg-red-500/10 rounded-lg text-red-500/50 hover:text-red-500"><Trash2 size={14} /></button>
+                      {u.role === 'ORGANIZER' && (
+                        <button onClick={() => handleRemoveOrganizer(u.id)} title="Remove Organizer" className="p-2 hover:bg-orange-500/10 rounded-lg text-orange-500/50 hover:text-orange-500"><Activity size={14} /></button>
+                      )}
+                      <button onClick={() => handleBanUser(u.id)} title="Ban User" className="p-2 hover:bg-red-500/10 rounded-lg text-red-500/50 hover:text-red-500"><Ban size={14} /></button>
                     </div>
                   </td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function AccessCodesTab() {
+  const supabase = createSupabaseBrowserClient();
+  const [generating, setGenerating] = useState(false);
+  const { data: codes, isLoading, refetch } = useQuery({
+    queryKey: ['admin-codes'],
+    queryFn: async () => {
+      const { data } = await supabase.from('organizer_codes').select('*').order('created_at', { ascending: false });
+      return data || [];
+    },
+  });
+
+  const handleGenerate = async () => {
+    setGenerating(true);
+    try {
+      const code = await generateOrganizerCodeAction();
+      await supabase.from('organizer_codes').insert({ code, created_at: new Date().toISOString(), is_active: true });
+      refetch();
+    } catch (e) {
+      console.error(e);
+    }
+    setGenerating(false);
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-sm font-black uppercase tracking-tight">Organizer Access Codes</h3>
+        <button onClick={handleGenerate} disabled={generating} className="btn-primary text-xs flex items-center gap-2">
+          {generating ? <Loader2 size={14} className="animate-spin" /> : <Key size={14} />}
+          Generate New Code
+        </button>
+      </div>
+      <div className="glass rounded-2xl overflow-hidden">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-white/10">
+              <th className="text-left p-4 text-[10px] font-black uppercase tracking-widest text-white/30">Code</th>
+              <th className="text-left p-4 text-[10px] font-black uppercase tracking-widest text-white/30">Status</th>
+              <th className="text-left p-4 text-[10px] font-black uppercase tracking-widest text-white/30">Created At</th>
+            </tr>
+          </thead>
+          <tbody>
+            {isLoading ? <tr><td colSpan={3} className="p-8 text-center"><Loader2 size={20} className="animate-spin mx-auto text-red-500" /></td></tr> :
+              !codes?.length ? <tr><td colSpan={3} className="p-8 text-center text-xs text-white/20">No codes generated yet</td></tr> :
+              codes.map((c: any) => (
+                <tr key={c.id || c.code} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                  <td className="p-4"><span className="text-sm font-bold tracking-widest">{c.code}</span></td>
+                  <td className="p-4"><span className={`text-[10px] font-black uppercase tracking-widest ${c.is_active !== false ? 'text-green-500' : 'text-red-500'}`}>{c.is_active !== false ? 'Active' : 'Inactive'}</span></td>
+                  <td className="p-4 text-[10px] text-white/30">{new Date(c.created_at || new Date()).toLocaleString()}</td>
                 </tr>
               ))}
           </tbody>
@@ -158,6 +357,19 @@ function EventsTab() {
     },
   });
 
+  const queryClient = useQueryClient();
+
+  const handleUpdateStatus = async (eventId: string, status: string) => {
+    try {
+      await adminUpdateEventStatusAction(eventId, status);
+      toast.success(`Event status updated to ${status}`);
+      queryClient.invalidateQueries({ queryKey: ['admin-events'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update event status');
+    }
+  };
+
   return (
     <div className="glass rounded-2xl overflow-hidden">
       <table className="w-full">
@@ -173,16 +385,20 @@ function EventsTab() {
         <tbody>
           {isLoading ? <tr><td colSpan={5} className="p-8 text-center"><Loader2 size={20} className="animate-spin mx-auto text-red-500" /></td></tr> :
             !events?.length ? <tr><td colSpan={5} className="p-8 text-center text-xs text-white/20">No events</td></tr> :
-            events.map(ev => (
+            events.map((ev: any) => (
               <tr key={ev.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                 <td className="p-4"><span className="text-sm font-bold">{ev.title}</span></td>
                 <td className="p-4 text-xs text-white/40">{ev.organizer?.email}</td>
-                <td className="p-4"><span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-full ${ev.status === 'LIVE' ? 'bg-green-500/10 text-green-500' : ev.status === 'PENDING' ? 'bg-yellow-500/10 text-yellow-500' : ev.status === 'DRAFT' ? 'bg-white/10 text-white/50' : 'bg-red-500/10 text-red-500'}`}>{ev.status}</span></td>
+                <td className="p-4"><span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-full ${ev.status === 'LIVE' || ev.status === 'APPROVED' ? 'bg-green-500/10 text-green-500' : ev.status === 'PENDING' ? 'bg-yellow-500/10 text-yellow-500' : ev.status === 'ONGOING' ? 'bg-blue-500/10 text-blue-500' : ev.status === 'DRAFT' ? 'bg-white/10 text-white/50' : 'bg-red-500/10 text-red-500'}`}>{ev.status}</span></td>
                 <td className="p-4 text-[10px] text-white/30">{new Date(ev.event_date).toLocaleDateString()}</td>
                 <td className="p-4 text-right">
                   <div className="flex items-center justify-end gap-2">
-                    <button className="p-2 hover:bg-green-500/10 rounded-lg text-green-500/50 hover:text-green-500"><CheckCircle size={14} /></button>
-                    <button className="p-2 hover:bg-red-500/10 rounded-lg text-red-500/50 hover:text-red-500"><XCircle size={14} /></button>
+                    {ev.status !== 'LIVE' && ev.status !== 'APPROVED' && (
+                      <button onClick={() => handleUpdateStatus(ev.id, 'LIVE')} className="p-2 hover:bg-green-500/10 rounded-lg text-green-500/50 hover:text-green-500" title="Approve/Go Live"><CheckCircle size={14} /></button>
+                    )}
+                    {ev.status !== 'DRAFT' && ev.status !== 'REJECTED' && (
+                      <button onClick={() => handleUpdateStatus(ev.id, 'DRAFT')} className="p-2 hover:bg-red-500/10 rounded-lg text-red-500/50 hover:text-red-500" title="Reject/Draft"><XCircle size={14} /></button>
+                    )}
                   </div>
                 </td>
               </tr>
