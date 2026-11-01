@@ -29,7 +29,7 @@ ALTER TABLE email_queue ENABLE ROW LEVEL SECURITY;
 -- Helper: current user role
 CREATE OR REPLACE FUNCTION public.current_user_role()
 RETURNS VARCHAR(50)
-LANGUAGE SQL STABLE
+LANGUAGE SQL SECURITY DEFINER STABLE
 AS $$
   SELECT COALESCE(
     (SELECT role FROM public.users WHERE id = auth.uid()),

@@ -1,15 +1,16 @@
-export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'ORGANIZER' | 'STAFF' | 'ATHLETE';
+export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'ORGANIZER' | 'STAFF' | 'DEVELOPER' | 'ATHLETE';
 
 export const ROLE_HIERARCHY: Record<Role, number> = {
   SUPER_ADMIN: 0,
   ADMIN: 1,
   ORGANIZER: 2,
   STAFF: 3,
-  ATHLETE: 4,
+  DEVELOPER: 4,
+  ATHLETE: 5,
 };
 
-export type EventStatus = 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'LIVE' | 'ENDED' | 'COMPLETED';
-export type RegistrationStatus = 'PENDING' | 'PAID' | 'CANCELLED' | 'REFUNDED';
+export type EventStatus = 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'LIVE' | 'ONGOING' | 'ENDED' | 'COMPLETED' | 'CANCELED' | 'ARCHIVED';
+export type RegistrationStatus = 'PENDING' | 'PAID' | 'CONFIRMED' | 'CANCELLED' | 'REFUNDED' | 'REFUND_REQUESTED' | 'REFUND_REJECTED';
 export type PaymentStatus = 'PENDING' | 'SUCCESS' | 'FAILED' | 'REFUNDED' | 'PENDING_REVIEW';
 export type ResultStatus = 'FINISHED' | 'DNF' | 'DNS' | 'DQ';
 export type CouponType = 'FIXED' | 'PERCENTAGE' | 'EARLY_BIRD';
@@ -17,6 +18,7 @@ export type Gender = 'MALE' | 'FEMALE';
 export type NotificationChannel = 'EMAIL' | 'WHATSAPP' | 'SMS' | 'IN_APP';
 
 export interface AuthUser {
+  username?: string;
   id: string;
   email: string;
   role: Role;
@@ -95,6 +97,7 @@ export interface Registration {
   discount_amount: number;
   net_amount: number;
   coupon_id: string | null;
+  form_data: Record<string, unknown> | null;
   expires_at: string | null;
   created_at: string;
   updated_at: string;

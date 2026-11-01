@@ -41,6 +41,7 @@ export function useEvent(id: string) {
         .from('events')
         .select('*, event_categories(*)')
         .eq('id', id)
+        .is('deleted_at', null)
         .single();
       if (error) throw error;
       return data as unknown as Event;

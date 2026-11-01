@@ -1,5 +1,7 @@
 'use client';
 
+import { BrandLogo } from '@/components/shared/brand-logo';
+
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'motion/react';
@@ -17,7 +19,7 @@ export default function EventDetailPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 size={32} className="animate-spin text-brand" />
+        <Loader2 size={32} className="animate-spin text-[#4e6500]" />
       </div>
     );
   }
@@ -25,13 +27,13 @@ export default function EventDetailPage() {
   if (!event) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-xs font-black uppercase tracking-widest text-white/20">Event not found</p>
+        <p className="text-xs font-semibold normal-case tracking-normal text-slate-600">Event not found</p>
       </div>
     );
   }
 
   const categories = event.event_categories || [];
-  const selected = categories.find((c: any) => c.id === selectedCategory) || categories[0];
+  const selected = categories.find((c) => c.id === selectedCategory) || categories[0];
   const status = event.status;
 
   return (
@@ -39,38 +41,38 @@ export default function EventDetailPage() {
       <div className="max-w-6xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
           <div className="lg:col-span-3">
-            <div className="aspect-[16/9] rounded-2xl overflow-hidden bg-white/5 mb-8">
+            <div className="aspect-[16/9] rounded-2xl overflow-hidden bg-slate-100 mb-8">
               {event.cover_image ? (
                 <img src={event.cover_image} alt={event.title} className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-brand/10 to-transparent">
-                  <span className="text-white/10 font-display text-4xl font-black">TT</span>
+                  <BrandLogo className="h-auto w-44 opacity-30" />
                 </div>
               )}
             </div>
 
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-              <h1 className="text-3xl md:text-5xl font-display font-black uppercase tracking-tighter mb-6">
+              <h1 className="text-3xl md:text-5xl font-display font-semibold normal-case tracking-tight mb-6">
                 {event.title}
               </h1>
 
               <div className="flex flex-wrap gap-4 mb-8">
-                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-white/40">
-                  <MapPin size={12} className="text-brand" />
+                <div className="flex items-center gap-2 text-xs font-bold normal-case tracking-normal text-slate-600">
+                  <MapPin size={12} className="text-[#4e6500]" />
                   {event.venue_name || event.city || 'TBA'}
                 </div>
-                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-white/40">
-                  <Calendar size={12} className="text-brand" />
+                <div className="flex items-center gap-2 text-xs font-bold normal-case tracking-normal text-slate-600">
+                  <Calendar size={12} className="text-[#4e6500]" />
                   {new Date(event.event_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
                 </div>
-                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-white/40">
-                  <Clock size={12} className="text-brand" />
+                <div className="flex items-center gap-2 text-xs font-bold normal-case tracking-normal text-slate-600">
+                  <Clock size={12} className="text-[#4e6500]" />
                   Reg: {new Date(event.registration_close).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                 </div>
               </div>
 
               {event.description && (
-                <div className="text-sm text-white/60 font-bold uppercase tracking-widest leading-relaxed mb-8">
+                <div className="text-sm text-slate-600 font-bold normal-case tracking-normal leading-relaxed mb-8">
                   {event.description}
                 </div>
               )}
@@ -84,12 +86,12 @@ export default function EventDetailPage() {
               transition={{ delay: 0.2 }}
               className="glass rounded-2xl p-6 sticky top-28"
             >
-              <h3 className="text-xs font-black uppercase tracking-widest text-white/50 mb-6">
+              <h3 className="text-xs font-semibold normal-case tracking-normal text-slate-600 mb-6">
                 SELECT CATEGORY
               </h3>
 
               <div className="space-y-3 mb-8">
-                {categories.map((cat: any) => {
+                {categories.map((cat) => {
                   const isSelected = selectedCategory === cat.id || (!selectedCategory && categories[0]?.id === cat.id);
                   return (
                     <button
@@ -98,19 +100,19 @@ export default function EventDetailPage() {
                       className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
                         isSelected
                           ? 'border-brand bg-brand/10'
-                          : 'border-white/10 bg-white/5 hover:bg-white/[0.07]'
+                          : 'border-slate-300 bg-slate-100 hover:bg-slate-100'
                       }`}
                     >
                       <div className="flex items-center justify-between mb-1">
-                        <span className={`text-sm font-black uppercase tracking-tight ${isSelected ? 'text-brand' : 'text-white'}`}>
+                        <span className={`text-sm font-semibold normal-case tracking-tight ${isSelected ? 'text-[#4e6500]' : 'text-slate-900'}`}>
                           {cat.name}
                         </span>
-                        <span className="text-xs font-black">
+                        <span className="text-xs font-semibold">
                           RM{Number(cat.base_price).toFixed(2)}
                         </span>
                       </div>
                       {cat.max_slots && (
-                        <div className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-white/30">
+                        <div className="flex items-center gap-1 text-xs font-bold normal-case tracking-normal text-slate-600">
                           <Users size={10} />
                           {cat.max_slots} slots max
                         </div>
@@ -122,9 +124,9 @@ export default function EventDetailPage() {
 
               {selected && (
                 <div className="mb-6">
-                  <div className="flex items-center justify-between py-3 border-t border-white/10">
-                    <span className="text-xs font-black uppercase tracking-widest text-white/50">Entry Fee</span>
-                    <span className="text-2xl font-display font-black text-brand">
+                  <div className="flex items-center justify-between py-3 border-t border-slate-300">
+                    <span className="text-xs font-semibold normal-case tracking-normal text-slate-600">Entry Fee</span>
+                    <span className="text-2xl font-display font-semibold text-[#4e6500]">
                       RM{Number(selected.base_price).toFixed(2)}
                     </span>
                   </div>
@@ -143,7 +145,7 @@ export default function EventDetailPage() {
               </button>
 
               {event.max_participants && (
-                <p className="text-[9px] text-white/20 font-bold uppercase tracking-widest text-center mt-4">
+                <p className="text-xs text-slate-600 font-bold normal-case tracking-normal text-center mt-4">
                   <Users size={10} className="inline mr-1" />
                   Max {event.max_participants} participants
                 </p>

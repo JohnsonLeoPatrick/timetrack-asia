@@ -1,80 +1,94 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import type { AuthUser, Role } from '@/lib/types';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
+
+async function readProfile(sb: ReturnType<typeof createSupabaseBrowserClient>, identity: Pick<SupabaseUser, 'id' | 'email'>): Promise<AuthUser> {
+  const { data, error } = await sb.from('users').select('role, status, deleted_at, username, first_name, last_name, phone, avatar_url').eq('id', identity.id).single();
+  if (error) throw new Error(error.message);
+  if (!data || data.status !== 'ACTIVE' || data.deleted_at) throw new Error('Account is inactive');
+  return { id: identity.id, email: identity.email || '', role: data.role as Role, username: data.username, firstName: data.first_name, lastName: data.last_name, phone: data.phone, status: data.status, avatarUrl: data.avatar_url };
+}
 
 export function useSupabaseAuth() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const supabase = createSupabaseBrowserClient();
   const router = useRouter();
+  const supabaseRef = useRef<ReturnType<typeof createSupabaseBrowserClient> | null>(null);
+
+  const getSupabase = useCallback(() => {
+    if (!supabaseRef.current) {
+      try {
+        supabaseRef.current = createSupabaseBrowserClient();
+      } catch {
+        return null;
+      }
+    }
+    return supabaseRef.current;
+  }, []);
 
   useEffect(() => {
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        const meta = session.user.user_metadata;
-        setUser({
-          id: session.user.id,
-          email: session.user.email || '',
-          role: (meta?.role as Role) || 'ATHLETE',
-          firstName: meta?.first_name || meta?.full_name?.split(' ')[0],
-          lastName: meta?.last_name || meta?.full_name?.split(' ').slice(1).join(' '),
-          phone: meta?.phone,
-          status: meta?.status || 'ACTIVE',
-          avatarUrl: session.user.user_metadata?.avatar_url,
-        });
-      }
-      setLoading(false);
+    const supabase = getSupabase();
+    if (!supabase) {
+      queueMicrotask(() => setLoading(false));
+      return;
+    }
+
+    let active = true;
+    const syncUser = async (identity: SupabaseUser | null) => {
+      try {
+        const profile = identity ? await readProfile(supabase, identity) : null;
+        if (active) setUser(profile);
+      } catch { if (active) setUser(null); }
+      finally { if (active) setLoading(false); }
     };
-
-    getSession();
-
+    void supabase.auth.getUser().then(({ data }) => syncUser(data?.user));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        const meta = session.user.user_metadata;
-        setUser({
-          id: session.user.id,
-          email: session.user.email || '',
-          role: (meta?.role as Role) || 'ATHLETE',
-          firstName: meta?.first_name || meta?.full_name?.split(' ')[0],
-          lastName: meta?.last_name || meta?.full_name?.split(' ').slice(1).join(' '),
-          phone: meta?.phone,
-          status: meta?.status || 'ACTIVE',
-          avatarUrl: session.user.user_metadata?.avatar_url,
-        });
-      } else {
-        setUser(null);
-      }
-      setLoading(false);
+      // Leave the Auth callback before querying PostgREST to avoid an auth lock.
+      setTimeout(() => { if (active) void syncUser(session?.user || null); }, 0);
     });
 
-    return () => subscription.unsubscribe();
-  }, [supabase.auth, router]);
+    return () => { active = false; subscription.unsubscribe(); };
+  }, [getSupabase, router]);
 
   const signIn = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const sb = getSupabase();
+    if (!sb) throw new Error('Supabase client not available');
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
     if (error) throw error;
+
+    if (data?.user) {
+      const profile = await readProfile(sb, data.user);
+      setUser(profile);
+      data.user.app_metadata = { ...data.user.app_metadata, role: profile.role };
+    }
+
     router.refresh();
-  }, [supabase.auth, router]);
+    return data?.user;
+  }, [getSupabase, router]);
 
   const signUp = useCallback(async (email: string, password: string, metadata?: Record<string, unknown>) => {
-    const { error } = await supabase.auth.signUp({
+    const sb = getSupabase();
+    if (!sb) throw new Error('Supabase client not available');
+    const { error } = await sb.auth.signUp({
       email,
       password,
       options: { data: metadata },
     });
     if (error) throw error;
-  }, [supabase.auth]);
+  }, [getSupabase]);
 
   const signOut = useCallback(async () => {
-    await supabase.auth.signOut();
+    const sb = getSupabase();
+    if (!sb) throw new Error('Supabase client not available');
+    await sb.auth.signOut();
     setUser(null);
     router.refresh();
     router.push('/');
-  }, [supabase.auth, router]);
+  }, [getSupabase, router]);
 
   return { user, loading, signIn, signUp, signOut };
 }

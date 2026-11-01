@@ -1,5 +1,7 @@
 'use client';
 
+import { BrandLogo } from '@/components/shared/brand-logo';
+
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -7,13 +9,12 @@ import { motion } from 'motion/react';
 import { Loader2 } from 'lucide-react';
 import { useLanguage } from '@/providers/language-provider';
 import { useNotification } from '@/providers/notification-provider';
-import { useSupabaseAuth } from '@/hooks/use-auth';
+import { signUpAction } from '@/lib/server/actions/auth.actions';
 import type { Role } from '@/lib/types';
 
 export default function SignupPage() {
   const { t } = useLanguage();
   const { showNotification } = useNotification();
-  const { signUp } = useSupabaseAuth();
   const router = useRouter();
   const [role, setRole] = useState<Role | null>(null);
   const [fullName, setFullName] = useState('');
@@ -24,21 +25,29 @@ export default function SignupPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (role === 'ORGANIZER' && secretCode !== 'TIMETRACK2026') {
-      showNotification('Invalid organizer access code', 'error');
-      return;
-    }
     setLoading(true);
     try {
-      await signUp(email, password, {
-        role: role || 'ATHLETE',
-        full_name: fullName,
-        status: 'ACTIVE',
-      });
+      const [first, ...rest] = fullName.trim().split(/\s+/);
+      const formData = new FormData();
+      formData.set('email', email);
+      formData.set('password', password);
+      formData.set('firstName', first || '');
+      formData.set('lastName', rest.join(' '));
+      formData.set('role', role || 'ATHLETE');
+      if (role === 'ORGANIZER') formData.set('organizerCode', secretCode);
+
+      // Role assignment and organizer-code validation/consumption happen
+      // server-side; the browser never gets a say in the resulting role.
+      const result = await signUpAction(formData);
+      if (result?.error) {
+        showNotification(result.error, 'error');
+        return;
+      }
+
       showNotification('Account created! Please check your email to confirm.', 'success');
       router.push('/login');
-    } catch (err: any) {
-      showNotification(err.message || 'Signup failed', 'error');
+    } catch (err) {
+      showNotification((err instanceof Error ? err.message : '') || 'Signup failed', 'error');
     } finally {
       setLoading(false);
     }
@@ -49,16 +58,14 @@ export default function SignupPage() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md"
+        className="auth-card w-full max-w-md"
       >
         <div className="text-center mb-10">
-          <div className="w-14 h-14 bg-brand rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <span className="text-black font-black text-xl">TT</span>
-          </div>
-          <h1 className="text-3xl font-display font-black uppercase tracking-tighter mb-2">
+          <BrandLogo className="mx-auto mb-6 h-auto w-44" />
+          <h1 className="text-3xl font-display font-semibold normal-case tracking-tight mb-2">
             {t('signup.title')}
           </h1>
-          <p className="text-xs font-bold uppercase tracking-widest text-white/30">
+          <p className="text-xs font-bold normal-case tracking-normal text-slate-600">
             {t('signup.subtitle')}
           </p>
         </div>
@@ -68,11 +75,11 @@ export default function SignupPage() {
             onClick={() => setRole('ATHLETE')}
             className={`flex-1 py-4 px-4 rounded-2xl border-2 text-center transition-all ${
               role === 'ATHLETE'
-                ? 'border-brand bg-brand/10 text-brand'
-                : 'border-white/10 bg-white/5 text-white/50'
+                ? 'border-brand bg-brand/10 text-[#4e6500]'
+                : 'border-slate-300 bg-slate-100 text-slate-600'
             }`}
           >
-            <span className="text-[10px] font-black uppercase tracking-widest">
+            <span className="text-xs font-semibold normal-case tracking-normal">
               {t('signup.role.athlete')}
             </span>
           </button>
@@ -80,11 +87,11 @@ export default function SignupPage() {
             onClick={() => setRole('ORGANIZER')}
             className={`flex-1 py-4 px-4 rounded-2xl border-2 text-center transition-all ${
               role === 'ORGANIZER'
-                ? 'border-brand bg-brand/10 text-brand'
-                : 'border-white/10 bg-white/5 text-white/50'
+                ? 'border-brand bg-brand/10 text-[#4e6500]'
+                : 'border-slate-300 bg-slate-100 text-slate-600'
             }`}
           >
-            <span className="text-[10px] font-black uppercase tracking-widest">
+            <span className="text-xs font-semibold normal-case tracking-normal">
               {t('signup.role.organizer')}
             </span>
           </button>
@@ -148,9 +155,9 @@ export default function SignupPage() {
           </button>
         </form>
 
-        <p className="text-center mt-8 text-xs font-bold uppercase tracking-widest text-white/30">
+        <p className="text-center mt-8 text-xs font-bold normal-case tracking-normal text-slate-600">
           {t('signup.already')}{' '}
-          <Link href="/login" className="text-brand hover:underline">
+          <Link href="/login" className="text-[#4e6500] hover:underline">
             {t('nav.login')}
           </Link>
         </p>

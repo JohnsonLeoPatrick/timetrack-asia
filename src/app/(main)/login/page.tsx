@@ -1,5 +1,7 @@
 'use client';
 
+import { BrandLogo } from '@/components/shared/brand-logo';
+
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -23,14 +25,16 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      await signIn(email, password);
+      const loggedInUser = await signIn(email, password);
       showNotification('Login successful!', 'success');
-      const role = user?.role;
+      const next = new URLSearchParams(window.location.search).get('redirectTo');
+      if (next && next.startsWith('/') && !next.startsWith('//') && !next.includes('\\')) { router.push(next); return; }
+      const role = loggedInUser?.app_metadata?.role;
       if (role === 'ADMIN' || role === 'SUPER_ADMIN') router.push('/admin/dashboard');
       else if (role === 'ORGANIZER') router.push('/organizer/dashboard');
-      else router.push('/events');
-    } catch (err: any) {
-      showNotification(err.message || 'Login failed', 'error');
+      else router.push('/profile');
+    } catch (err) {
+      showNotification((err instanceof Error ? err.message : '') || 'Login failed', 'error');
     } finally {
       setLoading(false);
     }
@@ -41,16 +45,14 @@ export default function LoginPage() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md"
+        className="auth-card w-full max-w-md"
       >
         <div className="text-center mb-10">
-          <div className="w-14 h-14 bg-brand rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <span className="text-black font-black text-xl">TT</span>
-          </div>
-          <h1 className="text-3xl font-display font-black uppercase tracking-tighter mb-2">
+          <BrandLogo className="mx-auto mb-6 h-auto w-44" />
+          <h1 className="text-3xl font-display font-semibold normal-case tracking-tight mb-2">
             {t('login.title')}
           </h1>
-          <p className="text-xs font-bold uppercase tracking-widest text-white/30">
+          <p className="text-xs font-bold normal-case tracking-normal text-slate-600">
             {t('login.subtitle')}
           </p>
         </div>
@@ -82,15 +84,15 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/50"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-600"
               >
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
           </div>
 
-          <div className="flex items-center justify-between text-xs font-bold uppercase tracking-widest">
-            <Link href="/forgot-password" className="text-white/30 hover:text-brand transition-colors">
+          <div className="flex items-center justify-between text-xs font-bold normal-case tracking-normal">
+            <Link href="/forgot-password" className="text-slate-600 hover:text-[#4e6500] transition-colors">
               {t('login.forgot')}
             </Link>
           </div>
@@ -101,9 +103,9 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="text-center mt-8 text-xs font-bold uppercase tracking-widest text-white/30">
+        <p className="text-center mt-8 text-xs font-bold normal-case tracking-normal text-slate-600">
           {t('login.no_account')}{' '}
-          <Link href="/signup" className="text-brand hover:underline">
+          <Link href="/signup" className="text-[#4e6500] hover:underline">
             {t('login.signup')}
           </Link>
         </p>

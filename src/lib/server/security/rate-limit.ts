@@ -1,4 +1,19 @@
 const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
+const MAX_ENTRIES = 10_000;
+
+function evictExpired(now: number) {
+  for (const [key, record] of rateLimitStore) {
+    if (now > record.resetAt) rateLimitStore.delete(key);
+  }
+  if (rateLimitStore.size > MAX_ENTRIES) {
+    const overflow = rateLimitStore.size - MAX_ENTRIES;
+    let i = 0;
+    for (const key of rateLimitStore.keys()) {
+      if (i++ >= overflow) break;
+      rateLimitStore.delete(key);
+    }
+  }
+}
 
 export interface RateLimitConfig {
   windowMs: number;
@@ -10,6 +25,7 @@ export function checkRateLimit(
   config: RateLimitConfig = { windowMs: 60_000, maxRequests: 30 }
 ): { allowed: boolean; remaining: number; resetAt: number } {
   const now = Date.now();
+  evictExpired(now);
   const record = rateLimitStore.get(key);
 
   if (!record || now > record.resetAt) {

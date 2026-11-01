@@ -12,6 +12,13 @@
 
 # testing
 /coverage
+/.cache/
+/tools/skill-sources/
+/scratch/
+/exports/
+/supabase/.temp/
+/src/lib/supabase/db-store.json
+/.mcp.json
 
 # next.js
 /.next/

@@ -90,6 +90,5 @@ export async function generateCertificatePDF(data: CertificateData): Promise<Buf
       .text('www.timetrack.asia', centerX, pageHeight - 55, { align: 'center' });
 
     doc.end();
-    resolve(Buffer.concat(chunks));
   });
 }

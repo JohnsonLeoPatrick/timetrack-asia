@@ -1,11 +1,3 @@
-import { DesktopGuard } from '@/components/layout/desktop-guard';
-
 export default function OrganizerLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <DesktopGuard theme="blue">
-      <div className="min-h-screen bg-black text-white">
-        {children}
-      </div>
-    </DesktopGuard>
-  );
+  return <div className="app-light min-h-dvh bg-[#f7f8f5] text-slate-900">{children}</div>;
 }

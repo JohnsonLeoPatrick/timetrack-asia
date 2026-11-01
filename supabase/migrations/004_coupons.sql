@@ -16,6 +16,9 @@ DECLARE
   v_discount DECIMAL;
   v_result JSONB;
 BEGIN
+  IF auth.uid() IS NULL OR auth.uid() <> p_user_id THEN
+    RAISE EXCEPTION 'Unauthorized coupon validation';
+  END IF;
   -- Find coupon
   SELECT * INTO v_coupon FROM coupons
   WHERE code = UPPER(p_code)

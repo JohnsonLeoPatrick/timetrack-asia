@@ -1,9 +1,12 @@
 'use server';
 
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { requireRole } from '@/lib/server/auth/require-role';
 import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
 
 export async function createPaymentAction(registrationId: string, gateway: string) {
+  if (gateway.toUpperCase() === 'CHIP') throw new Error('Use secure CHIP checkout to create this payment');
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Unauthorized');
@@ -37,72 +40,42 @@ export async function createPaymentAction(registrationId: string, gateway: strin
 }
 
 export async function adminApprovePaymentAction(paymentId: string) {
+  await requireRole(['ADMIN', 'SUPER_ADMIN']);
   const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Unauthorized');
+  const { data: target, error: targetError } = await supabase.from('payments').select('payment_gateway').eq('id', paymentId).single();
+  if (targetError || !target) throw new Error('Payment not found');
+  if (target.payment_gateway === 'CHIP') throw new Error('CHIP payments require provider verification');
 
-  const role = user.user_metadata?.role;
-  if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') throw new Error('Forbidden');
-
-  const { data: payment, error: payError } = await supabase
-    .from('payments')
-    .update({ status: 'SUCCESS' })
-    .eq('id', paymentId)
-    .select('registration_id')
-    .single();
-
-  if (payError) throw new Error(payError.message);
-
-  await supabase
-    .from('registrations')
-    .update({ status: 'PAID' })
-    .eq('id', payment.registration_id);
+  const { error } = await supabase.rpc('review_payment', { p_payment_id: paymentId, p_approve: true });
+  if (error) throw new Error('Payment review is unavailable. Please try again later.');
 
   revalidatePath('/admin/dashboard', 'page');
 }
 
 export async function adminRejectPaymentAction(paymentId: string) {
+  await requireRole(['ADMIN', 'SUPER_ADMIN']);
   const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Unauthorized');
+  const { data: target, error: targetError } = await supabase.from('payments').select('payment_gateway').eq('id', paymentId).single();
+  if (targetError || !target) throw new Error('Payment not found');
+  if (target.payment_gateway === 'CHIP') throw new Error('Manage CHIP payment status through provider verification');
 
-  const role = user.user_metadata?.role;
-  if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') throw new Error('Forbidden');
-
-  const { error } = await supabase
-    .from('payments')
-    .update({ status: 'FAILED' })
-    .eq('id', paymentId);
-
-  if (error) throw new Error(error.message);
+  const { error } = await supabase.rpc('review_payment', { p_payment_id: paymentId, p_approve: false });
+  if (error) throw new Error('Payment review is unavailable. Please try again later.');
   revalidatePath('/admin/dashboard', 'page');
 }
 
 export async function processRefundAction(refundId: string, approve: boolean) {
+  z.string().uuid().parse(refundId);
+  z.boolean().parse(approve);
+  await requireRole(['ADMIN', 'SUPER_ADMIN']);
   const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Unauthorized');
+  const { data: refundPayment, error: paymentError } = await supabase.from('refunds').select('payments!inner(payment_gateway)').eq('id', refundId).single();
+  if (paymentError || !refundPayment) throw new Error('Refund not found');
+  const payment = Array.isArray(refundPayment.payments) ? refundPayment.payments[0] : refundPayment.payments;
+  if (payment?.payment_gateway === 'CHIP') throw new Error('Process CHIP refunds through the merchant portal; this action does not move provider funds');
 
-  const role = user.user_metadata?.role;
-  if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') throw new Error('Forbidden');
-
-  const status = approve ? 'REFUNDED' : 'REFUND_REJECTED';
-
-  const { data: refund, error: refError } = await supabase
-    .from('refunds')
-    .update({ status, processed_at: new Date().toISOString() })
-    .eq('id', refundId)
-    .select('registration_id')
-    .single();
-
-  if (refError) throw new Error(refError.message);
-
-  if (approve) {
-    await supabase
-      .from('registrations')
-      .update({ status: 'REFUNDED' })
-      .eq('id', refund.registration_id);
-  }
+  const { error } = await supabase.rpc('review_registration_refund', { p_refund_id: refundId, p_approve: approve });
+  if (error) throw new Error('Refund review could not be completed. Please check its current status.');
 
   revalidatePath('/admin/dashboard', 'page');
 }

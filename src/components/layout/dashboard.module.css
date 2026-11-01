@@ -1,0 +1,63 @@
+.dashboard {
+  min-width: 0;
+}
+
+.dashboard :global(.glass) {
+  border-color: #dce1d8;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.dashboard table {
+  border-collapse: collapse;
+}
+
+.dashboard th {
+  background: #f8faf7;
+  white-space: nowrap;
+}
+
+.dashboard td {
+  overflow-wrap: anywhere;
+}
+
+.dashboard :global(.glass) h3 { line-height: 1.4; }
+.dashboard :global(.glass) > p { line-height: 1.6; }
+.dashboard :global(.glass) > div > p { font-variant-numeric: tabular-nums; }
+
+.dashboard button,
+.dashboard a {
+  touch-action: manipulation;
+}
+
+.dashboard button:focus-visible,
+.dashboard a:focus-visible,
+.dashboard input:focus-visible {
+  outline: 2px solid #4e6500;
+  outline-offset: 3px;
+}
+
+.dashboard button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.dashboard button:has(> svg:only-child) {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 639px) {
+  .dashboard input,
+  .dashboard select {
+    font-size: 16px;
+  }
+
+  .dashboard th,
+  .dashboard td {
+    padding: 0.875rem;
+  }
+}

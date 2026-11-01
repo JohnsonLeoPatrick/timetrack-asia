@@ -1,3 +1,7 @@
+import type { Registration, Participant, Result, Event, User } from '@/lib/types';
+type ExportRegistration = Registration & { events?: Event; athlete?: User };
+type ExportParticipant = Participant & { event_categories?: { name: string } };
+type ExportResult = Result & { participants?: { full_name: string; event_categories?: { name: string } } };
 export function generateCSV(headers: string[], rows: Record<string, unknown>[]): string {
   const escapeField = (value: unknown): string => {
     const str = String(value ?? '');
@@ -15,7 +19,7 @@ export function generateCSV(headers: string[], rows: Record<string, unknown>[]):
   return [headerLine, ...dataLines].join('\n');
 }
 
-export function generateRegistrationsCSV(registrations: any[]): string {
+export function generateRegistrationsCSV(registrations: ExportRegistration[]): string {
   const headers = [
     'Registration #', 'Event', 'Athlete', 'Email', 'Phone',
     'Status', 'Total (RM)', 'Discount (RM)', 'Net (RM)',
@@ -39,7 +43,7 @@ export function generateRegistrationsCSV(registrations: any[]): string {
   return generateCSV(headers, rows);
 }
 
-export function generateParticipantsCSV(participants: any[]): string {
+export function generateParticipantsCSV(participants: ExportParticipant[]): string {
   const headers = [
     'Bib #', 'Full Name', 'Category', 'Gender', 'IC/Passport',
     'Email', 'Phone', 'DOB', 'Age', 'Country',
@@ -65,7 +69,7 @@ export function generateParticipantsCSV(participants: any[]): string {
   return generateCSV(headers, rows);
 }
 
-export function generateResultsCSV(results: any[]): string {
+export function generateResultsCSV(results: ExportResult[]): string {
   const headers = [
     'Bib #', 'Participant', 'Category', 'Status',
     'Finish Time', 'Gun Time', 'Chip Time',

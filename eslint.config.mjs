@@ -12,7 +12,22 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Vendored skills, archived applications, and one-off migration utilities.
+    "tools/**",
+    ".agents/**",
+    ".cache/**",
+    "timetrack-asia/**",
+    "scratch/**",
   ]),
+  {
+    files: ["tests/**/*.cjs", "scripts/**/*.js", "seed_test_data.js"],
+    rules: { "@typescript-eslint/no-require-imports": "off" },
+  },
+  {
+    // This browser/server mock loads Node modules only inside server branches.
+    files: ["src/lib/supabase/local-db.ts"],
+    rules: { "@typescript-eslint/no-require-imports": "off" },
+  },
 ]);
 
 export default eslintConfig;

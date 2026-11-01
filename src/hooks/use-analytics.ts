@@ -9,12 +9,22 @@ export function useEventAnalytics(eventId: string) {
     queryFn: async () => {
       const supabase = createSupabaseBrowserClient();
 
+      // PostgREST cannot nest a query builder inside `.in(...)`; resolve the
+      // registration ids first, then filter the child tables by those ids.
+      const { data: eventRegs } = await supabase
+        .from('registrations')
+        .select('id')
+        .eq('event_id', eventId);
+      const registrationIds = (eventRegs || []).map((r) => r.id);
+
       const [regs, payments, participants, categories] = await Promise.all([
         supabase.from('registrations').select('status, total_amount, created_at').eq('event_id', eventId),
-        supabase.from('payments').select('amount, status, created_at')
-          .in('registration_id', supabase.from('registrations').select('id').eq('event_id', eventId) as any),
-        supabase.from('participants').select('gender, category_id')
-          .in('registration_id', supabase.from('registrations').select('id').eq('event_id', eventId) as any),
+        registrationIds.length
+          ? supabase.from('payments').select('amount, status, created_at').in('registration_id', registrationIds)
+          : Promise.resolve({ data: [] }),
+        registrationIds.length
+          ? supabase.from('participants').select('gender, category_id').in('registration_id', registrationIds)
+          : Promise.resolve({ data: [] }),
         supabase.from('event_categories').select('id, name, base_price, max_slots').eq('event_id', eventId),
       ]);
 
@@ -44,7 +54,7 @@ export function useOrganizerAnalytics() {
         .eq('organizer_id', user.id)
         .is('deleted_at', null);
 
-      const eventIds = (events || []).map(e => e.id);
+      const eventIds = (events || []).map((e) => e.id);
       if (eventIds.length === 0) return { events: [], totalRegistrations: 0, totalRevenue: 0 };
 
       const { data: registrations } = await supabase
@@ -56,8 +66,8 @@ export function useOrganizerAnalytics() {
       return {
         events: events || [],
         totalRegistrations: regs.length,
-        totalRevenue: regs.filter(r => r.status === 'PAID').reduce((s, r) => s + Number(r.net_amount), 0),
-        pendingAmount: regs.filter(r => r.status === 'PENDING').reduce((s, r) => s + Number(r.total_amount), 0),
+        totalRevenue: regs.filter((r) => r.status === 'PAID').reduce((s: number, r) => s + Number(r.net_amount), 0),
+        pendingAmount: regs.filter((r) => r.status === 'PENDING').reduce((s: number, r) => s + Number(r.total_amount), 0),
         registrationTrend: regs,
       };
     },

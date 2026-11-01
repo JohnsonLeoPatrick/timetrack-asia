@@ -1,6 +1,7 @@
 'use server';
 
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { requireRole } from '@/lib/server/auth/require-role';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
@@ -14,18 +15,12 @@ const couponSchema = z.object({
   is_active: z.boolean().default(true),
   starts_at: z.string().optional(),
   expires_at: z.string().optional(),
-  event_id: z.string().uuid().optional(),
+  event_id: z.string().min(1).optional(),
 });
 
 export async function createCouponAction(formData: FormData) {
+  const { user } = await requireRole(['ORGANIZER', 'ADMIN', 'SUPER_ADMIN']);
   const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Unauthorized');
-
-  const role = user.user_metadata?.role;
-  if (role !== 'ORGANIZER' && role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
-    throw new Error('Forbidden');
-  }
 
   const parsed = couponSchema.parse({
     code: formData.get('code'),

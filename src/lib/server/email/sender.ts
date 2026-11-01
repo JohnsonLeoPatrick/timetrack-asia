@@ -1,7 +1,7 @@
-import nodemailer from 'nodemailer';
+import nodemailer, { type Transporter, type SendMailOptions } from 'nodemailer';
 import { markEmailSent, markEmailFailed, processEmailQueue } from './queue';
 
-let transporter: nodemailer.Transporter | null = null;
+let transporter: Transporter | null = null;
 
 function getTransporter() {
   if (!transporter) {
@@ -42,6 +42,9 @@ export async function processEmailWorker() {
         to: email.to_address,
         subject: email.subject,
         html: email.html_body,
+        attachments: Array.isArray(email.attachments) && email.attachments.length > 0
+          ? (email.attachments as SendMailOptions['attachments'])
+          : undefined,
       });
       await markEmailSent(email.id);
     } catch (error) {

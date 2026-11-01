@@ -48,6 +48,9 @@ export function parseFormNumber(value: FormDataEntryValue | null): number | unde
 }
 
 export function parseFormBoolean(value: FormDataEntryValue | null): boolean | undefined {
-  if (!value) return undefined;
-  return value === 'true' || value === '1';
+  if (value === null || value === '') return undefined;
+  const normalized = String(value).trim().toLowerCase();
+  if (['true', '1', 'on', 'yes'].includes(normalized)) return true;
+  if (['false', '0', 'off', 'no'].includes(normalized)) return false;
+  return undefined;
 }

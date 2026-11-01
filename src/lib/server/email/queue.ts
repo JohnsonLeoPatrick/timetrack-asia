@@ -21,11 +21,16 @@ export async function enqueueEmail(to: string, subject: string, html: string, op
 export async function processEmailQueue() {
   const supabase = await createSupabaseAdminClient();
 
+  // Only QUEUED emails are picked up. `markEmailFailed` re-queues until the
+  // row's own `max_retries` is reached, at which point it flips the status to
+  // FAILED so it is never selected again. (There is no per-row column
+  // comparison operator in PostgREST, so the retry cap is enforced in
+  // markEmailFailed rather than in this filter.)
   const { data: emails, error } = await supabase
     .from('email_queue')
     .select('*')
     .eq('status', 'QUEUED')
-    .lte('retry_count', supabase.rpc('get_column', { table: 'email_queue', column: 'max_retries' }) as any)
+    .or(`scheduled_at.is.null,scheduled_at.lte.${new Date().toISOString()}`)
     .order('created_at', { ascending: true })
     .limit(10);
 

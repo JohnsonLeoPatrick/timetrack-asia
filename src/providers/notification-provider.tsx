@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CheckCircle2, AlertCircle, X, Info } from 'lucide-react';
 
@@ -20,16 +20,32 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const timers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  useEffect(() => {
+    const pending = timers.current;
+    return () => {
+      pending.forEach((timer) => clearTimeout(timer));
+      pending.clear();
+    };
+  }, []);
 
   const showNotification = useCallback((message: string, type: NotificationType = 'success') => {
     const id = Math.random().toString(36).substr(2, 9);
     setNotifications((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => {
+    const timer = setTimeout(() => {
+      timers.current.delete(id);
       setNotifications((prev) => prev.filter((n) => n.id !== id));
     }, 5000);
+    timers.current.set(id, timer);
   }, []);
 
   const removeNotification = (id: string) => {
+    const timer = timers.current.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      timers.current.delete(id);
+    }
     setNotifications((prev) => prev.filter((n) => n.id !== id));
   };
 
@@ -46,10 +62,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
               exit={{ opacity: 0, x: 20, scale: 0.9 }}
               className={`pointer-events-auto min-w-[320px] p-5 rounded-2xl border flex items-center gap-4 shadow-2xl backdrop-blur-md ${
                 n.type === 'success'
-                  ? 'bg-[#ccff00]/10 border-[#ccff00]/20 text-[#ccff00]'
+                  ? 'bg-lime-50 border-lime-700 text-lime-800'
                   : n.type === 'error'
-                    ? 'bg-red-500/10 border-red-500/20 text-red-500'
-                    : 'bg-blue-500/10 border-blue-500/20 text-blue-500'
+                    ? 'bg-red-50 border-red-700 text-red-800'
+                    : 'bg-blue-50 border-blue-700 text-blue-800'
               }`}
             >
               <div className="shrink-0">
@@ -58,10 +74,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
                 {n.type === 'info' && <Info size={24} />}
               </div>
               <div className="flex-1">
-                <p className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-0.5">{n.type}</p>
-                <p className="text-sm font-black uppercase tracking-tight text-white">{n.message}</p>
+                <p className="text-xs font-bold normal-case tracking-normal mb-0.5">{n.type}</p>
+                <p className="text-sm font-semibold text-slate-900">{n.message}</p>
               </div>
-              <button onClick={() => removeNotification(n.id)} className="p-1 hover:bg-white/10 rounded-lg transition-colors">
+              <button aria-label="Dismiss notification" onClick={() => removeNotification(n.id)} className="p-3 hover:bg-black/5 rounded-lg transition-colors">
                 <X size={16} />
               </button>
             </motion.div>

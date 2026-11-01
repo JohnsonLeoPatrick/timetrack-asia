@@ -58,7 +58,7 @@ export function useOrganizerRegistrations(eventId?: string) {
 
       let query = supabase
         .from('registrations')
-        .select('*, events(title), participants(*), billing_details(*)')
+        .select('*, events(title, organizer_id), participants(*), billing_details(*)')
         .order('created_at', { ascending: false });
 
       if (eventId) {
@@ -67,7 +67,7 @@ export function useOrganizerRegistrations(eventId?: string) {
 
       const { data, error } = await query;
       if (error) throw error;
-      return (data || []).filter((r: any) => r.events?.organizer_id === user.id) as unknown as Registration[];
+      return (data || []).filter((r) => r.events?.organizer_id === user.id) as unknown as Registration[];
     },
     staleTime: 10_000,
     enabled: !!eventId,

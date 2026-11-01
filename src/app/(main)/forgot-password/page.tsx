@@ -1,5 +1,7 @@
 'use client';
 
+import { BrandLogo } from '@/components/shared/brand-logo';
+
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'motion/react';
@@ -9,7 +11,7 @@ import { useSupabaseAuth } from '@/hooks/use-auth';
 
 export default function ForgotPasswordPage() {
   const { showNotification } = useNotification();
-  const { supabase } = { supabase: null as any };
+  const { supabase } = { supabase: null };
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -21,13 +23,13 @@ export default function ForgotPasswordPage() {
     try {
       const supabaseClient = (await import('@/lib/supabase/client')).createSupabaseBrowserClient();
       const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/login`,
+        redirectTo: `${window.location.origin}/reset-password`,
       });
       if (error) throw error;
       setSent(true);
       showNotification('Password reset email sent!', 'success');
-    } catch (err: any) {
-      showNotification(err.message || 'Failed to send reset email', 'error');
+    } catch (err) {
+      showNotification((err instanceof Error ? err.message : '') || 'Failed to send reset email', 'error');
     } finally {
       setLoading(false);
     }
@@ -38,25 +40,23 @@ export default function ForgotPasswordPage() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md"
+        className="auth-card w-full max-w-md"
       >
         <div className="text-center mb-10">
-          <div className="w-14 h-14 bg-brand rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <span className="text-black font-black text-xl">TT</span>
-          </div>
-          <h1 className="text-3xl font-display font-black uppercase tracking-tighter mb-2">RESET PASSWORD</h1>
-          <p className="text-xs font-bold uppercase tracking-widest text-white/30">
-            Enter your email and we'll send you a reset link.
+          <BrandLogo className="mx-auto mb-6 h-auto w-44" />
+          <h1 className="text-3xl font-display font-semibold normal-case tracking-tight mb-2">RESET PASSWORD</h1>
+          <p className="text-xs font-bold normal-case tracking-normal text-slate-600">
+            Enter your email and we&apos;ll send you a reset link.
           </p>
         </div>
 
         {sent ? (
           <div className="text-center">
             <div className="w-16 h-16 bg-brand/10 rounded-2xl flex items-center justify-center mx-auto mb-6">
-              <span className="text-brand text-2xl">✓</span>
+              <span className="text-[#4e6500] text-2xl">✓</span>
             </div>
-            <p className="text-sm font-bold tracking-tight text-brand mb-4">Email Sent!</p>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-white/30 mb-6">
+            <p className="text-sm font-bold tracking-tight text-[#4e6500] mb-4">Email Sent!</p>
+            <p className="text-xs font-bold normal-case tracking-normal text-slate-600 mb-6">
               Check your inbox for the password reset link.
             </p>
             <button onClick={() => router.push('/login')} className="btn-secondary text-xs">
@@ -85,7 +85,7 @@ export default function ForgotPasswordPage() {
         )}
 
         <div className="text-center mt-8">
-          <button onClick={() => router.push('/login')} className="text-[10px] font-black uppercase tracking-widest text-white/30 hover:text-brand transition-colors">
+          <button onClick={() => router.push('/login')} className="text-xs font-semibold normal-case tracking-normal text-slate-600 hover:text-[#4e6500] transition-colors">
             Back to Login
           </button>
         </div>

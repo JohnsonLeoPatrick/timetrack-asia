@@ -1,18 +1,29 @@
 'use server';
 
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { requireRole } from '@/lib/server/auth/require-role';
 
 export async function getEventAnalyticsAction(eventId: string) {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Unauthorized');
 
+  // PostgREST cannot nest a query builder inside `.in(...)`; resolve the
+  // registration ids first, then filter the child tables by those ids.
+  const { data: eventRegs } = await supabase
+    .from('registrations')
+    .select('id')
+    .eq('event_id', eventId);
+  const registrationIds = (eventRegs || []).map((r) => r.id);
+
   const [regs, payments, participantsData, categoryData] = await Promise.all([
     supabase.from('registrations').select('status, total_amount, created_at').eq('event_id', eventId),
-    supabase.from('payments').select('amount, status, created_at')
-      .in('registration_id', supabase.from('registrations').select('id').eq('event_id', eventId) as any),
-    supabase.from('participants').select('gender, category_id')
-      .in('registration_id', supabase.from('registrations').select('id').eq('event_id', eventId) as any),
+    registrationIds.length
+      ? supabase.from('payments').select('amount, status, created_at').in('registration_id', registrationIds)
+      : Promise.resolve({ data: [] }),
+    registrationIds.length
+      ? supabase.from('participants').select('gender, category_id').in('registration_id', registrationIds)
+      : Promise.resolve({ data: [] }),
     supabase.from('event_categories').select('id, name, base_price, max_slots')
       .eq('event_id', eventId),
   ]);
@@ -36,7 +47,7 @@ export async function getOrganizerAnalyticsAction() {
     .eq('organizer_id', user.id)
     .is('deleted_at', null);
 
-  const eventIds = (events || []).map(e => e.id);
+  const eventIds = (events || []).map((e) => e.id);
 
   if (eventIds.length === 0) return { events: [], totalRegistrations: 0, totalRevenue: 0 };
 
@@ -46,9 +57,9 @@ export async function getOrganizerAnalyticsAction() {
     .in('event_id', eventIds);
 
   const regs = registrations || [];
-  const totalRevenue = regs.filter(r => r.status === 'PAID').reduce((s, r) => s + Number(r.net_amount), 0);
+  const totalRevenue = regs.filter((r) => r.status === 'PAID').reduce((s: number, r) => s + Number(r.net_amount), 0);
   const totalRegistrations = regs.length;
-  const pendingAmount = regs.filter(r => r.status === 'PENDING').reduce((s, r) => s + Number(r.total_amount), 0);
+  const pendingAmount = regs.filter((r) => r.status === 'PENDING').reduce((s: number, r) => s + Number(r.total_amount), 0);
 
   return {
     events: events || [],
@@ -60,12 +71,8 @@ export async function getOrganizerAnalyticsAction() {
 }
 
 export async function getAdminAnalyticsAction() {
+  await requireRole(['ADMIN', 'SUPER_ADMIN']);
   const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Unauthorized');
-
-  const role = user.user_metadata?.role;
-  if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') throw new Error('Forbidden');
 
   const [events, users, regs, payments] = await Promise.all([
     supabase.from('events').select('id, status, event_date').is('deleted_at', null),
