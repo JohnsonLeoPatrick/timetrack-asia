@@ -10,6 +10,7 @@ import { OrganizerAnalyticsTab } from '@/components/layout/dashboard-data-tabs';
 import { DashboardFrame, DashboardLoading } from '@/components/layout/dashboard-frame';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { useOrganizerCoupons, useToggleCoupon } from '@/hooks/use-coupons';
+import { useOrganizerEvents } from '@/hooks/use-events';
 import { createCouponAction, deleteCouponAction } from '@/lib/server/actions/coupon.actions';
 import { createFormTemplateAction, deleteFormTemplateAction } from '@/lib/server/actions/form-template.actions';
 import { duplicateEventAction } from '@/lib/server/actions/event.actions';
@@ -378,6 +379,7 @@ function ResultsTab() {
 
 function CouponsTab() {
   const { data: coupons, isLoading, refetch } = useOrganizerCoupons();
+  const { data: organizerEvents } = useOrganizerEvents();
   const toggleMutation = useToggleCoupon();
   const [showAddForm, setShowAddForm] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -386,6 +388,9 @@ function CouponsTab() {
   const [value, setValue] = useState(10);
   const [maxUses, setMaxUses] = useState('');
   const [minOrder, setMinOrder] = useState('');
+  const [eventId, setEventId] = useState('');
+  const [perUser, setPerUser] = useState('1');
+  const [expiresAt, setExpiresAt] = useState('');
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -398,12 +403,18 @@ function CouponsTab() {
       fd.append('value', String(value));
       if (maxUses) fd.append('max_uses', maxUses);
       if (minOrder) fd.append('min_order_amount', minOrder);
+      fd.append('event_id', eventId);
+      fd.append('max_uses_per_user', perUser);
+      if (expiresAt) fd.append('expires_at', expiresAt);
 
       await createCouponAction(fd);
       toast.success('Coupon created successfully');
       setCode('');
       setMaxUses('');
       setMinOrder('');
+      setEventId('');
+      setPerUser('1');
+      setExpiresAt('');
       setShowAddForm(false);
       refetch();
     } catch (err) {
@@ -446,13 +457,24 @@ function CouponsTab() {
           <h3 className="text-xs font-semibold normal-case tracking-normal text-blue-700 mb-2">Create Coupon</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="label-text">Coupon Code</label>
+              <label htmlFor="coupon-event" className="label-text">Event *</label>
+              <select id="coupon-event" required value={eventId} onChange={e => setEventId(e.target.value)} className="input-field">
+                <option value="">Select event</option>
+                {organizerEvents?.filter(event => event.coupons_allowed).map(event => <option key={event.id} value={event.id}>{event.title}</option>)}
+              </select>
+              <p className="mt-1 text-xs text-slate-600">Enable coupons for this event first.</p>
+            </div>
+            <div>
+              <label htmlFor="coupon-new-code" className="label-text">Coupon Code</label>
               <input
+                id="coupon-new-code"
                 type="text"
                 value={code}
                 onChange={e => setCode(e.target.value.toUpperCase())}
                 placeholder="e.g. RACE20"
                 required
+                minLength={3}
+                maxLength={100}
                 className="input-field"
               />
             </div>
@@ -461,36 +483,46 @@ function CouponsTab() {
               <FieldSelect id="coupon-discount-type" label="Discount type" value={type} onValueChange={value => setType(value as 'FIXED' | 'PERCENTAGE')} options={[{ value: 'PERCENTAGE', label: 'Percentage (%)' }, { value: 'FIXED', label: 'Fixed Amount (RM)' }]} />
             </div>
             <div>
-              <label className="label-text">Discount Value</label>
+              <label htmlFor="coupon-new-value" className="label-text">Discount Value</label>
               <input
+                id="coupon-new-value"
                 type="number"
                 value={value}
                 onChange={e => setValue(Number(e.target.value))}
                 min="1"
+                max={type === 'PERCENTAGE' ? 100 : undefined}
                 required
                 className="input-field"
               />
             </div>
             <div>
-              <label className="label-text">Max Total Uses (Optional)</label>
+              <label htmlFor="coupon-max-uses" className="label-text">Maximum uses</label>
               <input
+                id="coupon-max-uses"
                 type="number"
                 value={maxUses}
                 onChange={e => setMaxUses(e.target.value)}
                 placeholder="Unlimited"
+                min="1"
+                step="1"
                 className="input-field"
               />
             </div>
             <div>
-              <label className="label-text">Min Order Amount (RM, Optional)</label>
+              <label htmlFor="coupon-min-order" className="label-text">Minimum order (RM)</label>
               <input
+                id="coupon-min-order"
                 type="number"
                 value={minOrder}
                 onChange={e => setMinOrder(e.target.value)}
                 placeholder="None"
+                min="0"
+                step="0.01"
                 className="input-field"
               />
             </div>
+            <div><label htmlFor="coupon-per-user" className="label-text">Uses per customer</label><input id="coupon-per-user" type="number" required min="1" step="1" value={perUser} onChange={e => setPerUser(e.target.value)} className="input-field" /></div>
+            <div><label htmlFor="coupon-expiry" className="label-text">Expires at</label><input id="coupon-expiry" type="datetime-local" value={expiresAt} onChange={e => setExpiresAt(e.target.value)} className="input-field" /></div>
           </div>
           <div className="flex items-center gap-3 pt-2">
             <button type="submit" disabled={adding} className="btn-primary text-xs">
@@ -519,6 +551,8 @@ function CouponsTab() {
                 <th className="text-left p-4 text-xs font-semibold normal-case tracking-normal text-slate-600">Type</th>
                 <th className="text-left p-4 text-xs font-semibold normal-case tracking-normal text-slate-600">Value</th>
                 <th className="text-left p-4 text-xs font-semibold normal-case tracking-normal text-slate-600">Uses</th>
+                <th className="text-left p-4 text-xs font-semibold normal-case tracking-normal text-slate-600">Per customer</th>
+                <th className="text-left p-4 text-xs font-semibold normal-case tracking-normal text-slate-600">Expires</th>
                 <th className="text-left p-4 text-xs font-semibold normal-case tracking-normal text-slate-600">Min Spend</th>
                 <th className="text-left p-4 text-xs font-semibold normal-case tracking-normal text-slate-600">Status</th>
                 <th className="text-right p-4 text-xs font-semibold normal-case tracking-normal text-slate-600">Actions</th>
@@ -535,9 +569,9 @@ function CouponsTab() {
                   <td className="p-4 text-xs">
                     {c.current_uses} / {c.max_uses || '∞'}
                   </td>
-                  <td className="p-4 text-xs">
-                    RM{c.min_order_amount}
-                  </td>
+                  <td className="p-4 text-xs">{c.max_uses_per_user}</td>
+                  <td className="p-4 text-xs">{c.expires_at ? new Date(c.expires_at).toLocaleString('en-MY') : 'No expiry'}</td>
+                  <td className="p-4 text-xs">RM{c.min_order_amount}</td>
                   <td className="p-4">
                     <button
                       onClick={() => toggleMutation.mutate({ couponId: c.id, isActive: !c.is_active })}

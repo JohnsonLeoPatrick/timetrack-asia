@@ -141,3 +141,31 @@ test('manual approval cannot race active CHIP checkout and refund is atomic afte
   assert.deepEqual(result.rows[0], { payment: 'REFUNDED', registration: 'REFUNDED', refund: 'REFUNDED' });
   await assert.rejects(asUser(other, 'SELECT review_registration_refund($1,true)', [refund]), /not awaiting review/);
 });
+
+test('complete attendee checkout rejects missing details and stores tee, age group, consent without a bib', async () => {
+  const detailedEvent = '00000000-0000-4000-8000-000000000050';
+  const detailedCategory = '00000000-0000-4000-8000-000000000051';
+  const form = (await db.query("INSERT INTO form_templates(name,is_system,fields) VALUES ('Detailed test form',true,'[]') RETURNING id")).rows[0].id;
+  await db.query("INSERT INTO events(id,organizer_id,title,slug,status,event_date,registration_open,registration_close,form_template_id,coupons_allowed) VALUES ($1,$2,'Detailed race','detailed-race','LIVE',now()+interval '1 month',now()-interval '1 day',now()+interval '1 week',$3,true)", [detailedEvent, other, form]);
+  await db.query("INSERT INTO event_categories(id,event_id,name,base_price) VALUES ($1,$2,'Adult 7K',100)", [detailedCategory, detailedEvent]);
+  const billing = { first_name: 'Buyer', email: 'buyer@example.test', phone: '+60123456789', country: 'Malaysia', city: 'Kuala Lumpur', postcode: '50000', terms_accepted: true, policy_accepted: true };
+  const attendee = { category_id: detailedCategory, full_name: 'Full Runner', bib_name: 'RUNNER', email: 'runner@example.test', phone: '+60123456780', gender: 'FEMALE', ic_passport: '900101-10-1234', dob: '1990-01-01', age: 36, country: 'Malaysia', category_age: 'Adult', tee_size: 'M', medical_status: false, emergency_name: 'Contact', emergency_phone: '+60123456781' };
+  const register = (details, person, code = null) => asUser(owner, 'SELECT create_registration_atomic($1,$2,$3::jsonb,$4::jsonb,$5) AS value', [detailedEvent, owner, JSON.stringify(details), JSON.stringify([person]), code]);
+  await assert.rejects(register({ ...billing, policy_accepted: false }, attendee), /privacy policy/);
+  await assert.rejects(register(billing, { ...attendee, tee_size: undefined }), /Complete every attendee field/);
+  assert.equal(Number((await db.query('SELECT count(*) FROM registrations WHERE event_id=$1', [detailedEvent])).rows[0].count), 0);
+  const coupon = (await db.query("INSERT INTO coupons(code,type,value,event_id,organizer_id,max_uses,max_uses_per_user,expires_at) VALUES ('DETAILED10','FIXED',10,$1,$2,1,1,now()+interval '1 day') RETURNING id", [detailedEvent, other])).rows[0].id;
+  const result = await register(billing, attendee, 'DETAILED10');
+  const saved = (await db.query('SELECT r.form_data, p.bib_number, p.full_name, p.category_age, p.tee_size FROM registrations r JOIN participants p ON p.registration_id=r.id WHERE r.id=$1', [result.rows[0].value.registration_id])).rows[0];
+  assert.equal(saved.full_name, attendee.full_name);
+  assert.equal(saved.bib_number, null);
+  assert.equal(saved.tee_size, 'M');
+  assert.equal(saved.category_age, 'Adult');
+  assert.equal(saved.form_data.attendee_count, 1);
+  assert.equal(saved.form_data.participants, undefined);
+  assert.equal(saved.form_data.policy_accepted, true);
+  await assert.rejects(asUser(owner, "UPDATE registrations SET form_data='{}'::jsonb WHERE id=$1", [result.rows[0].value.registration_id]), /form data is server-managed/);
+  assert.equal(Number(result.rows[0].value.net_amount), 90);
+  assert.equal(Number((await db.query('SELECT current_uses FROM coupons WHERE id=$1', [coupon])).rows[0].current_uses), 1);
+  await assert.rejects(register(billing, attendee, 'DETAILED10'), /maximum uses|already used/);
+});

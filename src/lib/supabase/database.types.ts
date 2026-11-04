@@ -741,6 +741,7 @@ export type Database = {
           bib_name: string | null
           bib_number: string | null
           category_age: string | null
+          tee_size: string | null
           category_id: string
           check_in_time: string | null
           checked_in_by: string | null
@@ -769,6 +770,7 @@ export type Database = {
           bib_name?: string | null
           bib_number?: string | null
           category_age?: string | null
+          tee_size?: string | null
           category_id: string
           check_in_time?: string | null
           checked_in_by?: string | null
@@ -797,6 +799,7 @@ export type Database = {
           bib_name?: string | null
           bib_number?: string | null
           category_age?: string | null
+          tee_size?: string | null
           category_id?: string
           check_in_time?: string | null
           checked_in_by?: string | null

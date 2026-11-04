@@ -94,10 +94,10 @@ export function Sidebar({ variant }: SidebarProps) {
         <SheetTrigger aria-label="Open dashboard navigation" className="fixed top-4 left-4 z-30 flex size-11 items-center justify-center border border-slate-200 bg-white text-slate-700 transition-colors hover:bg-slate-100 lg:hidden"><Menu size={20} aria-hidden="true" /></SheetTrigger>
 
       {/* Backdrop */}
-        <SheetContent side="left" data-workspace={variant} className="gap-0 rounded-none bg-white data-[side=left]:w-[min(20rem,calc(100vw-2rem))]">
+        <SheetContent side="left" data-workspace={variant} className="gap-0 rounded-none bg-white data-[side=left]:w-[min(20rem,calc(100vw-2rem))] lg:hidden">
           <SheetTitle className="sr-only">Dashboard navigation</SheetTitle>
           <SheetDescription className="sr-only">Navigate your {variant} workspace.</SheetDescription>
-          {navigation()}
+          {isOpen && navigation()}
         </SheetContent>
       </Sheet>
 

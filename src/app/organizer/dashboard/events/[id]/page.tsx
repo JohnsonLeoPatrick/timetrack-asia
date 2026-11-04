@@ -10,7 +10,7 @@ import { DashboardFrame } from '@/components/layout/dashboard-frame';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { useEvent } from '@/hooks/use-events';
 import { ParticipantManagement } from '@/components/events/participant-management';
-import { updateEventStatusAction, deleteEventAction } from '@/lib/server/actions/event.actions';
+import { updateEventStatusAction, updateEventCouponsAction, enableCompleteRegistrationAction, deleteEventAction } from '@/lib/server/actions/event.actions';
 import { toast } from 'sonner';
 import { Award } from 'lucide-react';
 
@@ -262,7 +262,11 @@ function EventDetailContent() {
 
           {/* Tab Rendering */}
           <div className="space-y-6">
-            {tab === 'overview' && <><EventCoverUpload eventId={id} image={event.cover_image} onSaved={() => { refetchEvent(); qc.invalidateQueries({ queryKey: ['organizer-events'] }); }} /><OverviewSection event={event} /></>}
+            {tab === 'overview' && <>
+              <EventCoverUpload eventId={id} image={event.cover_image} onSaved={() => { refetchEvent(); qc.invalidateQueries({ queryKey: ['organizer-events'] }); }} />
+              <EventRegistrationSettings event={event} onSaved={() => { refetchEvent(); qc.invalidateQueries({ queryKey: ['organizer-events'] }); }} />
+              <OverviewSection event={event} />
+            </>}
             {tab === 'categories' && (
               <CategoriesSection
                 event={event}
@@ -279,6 +283,42 @@ function EventDetailContent() {
       </div>
     </DashboardFrame>
   );
+}
+
+function EventRegistrationSettings({ event, onSaved }: { event: import('@/lib/types').Event; onSaved: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const enableForm = async () => {
+    setBusy(true);
+    try {
+      await enableCompleteRegistrationAction(event.id);
+      onSaved();
+      toast.success('Complete attendee form enabled');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not enable form');
+    } finally { setBusy(false); }
+  };
+  const setCoupons = async (allowed: boolean) => {
+    setBusy(true);
+    try {
+      await updateEventCouponsAction(event.id, allowed);
+      onSaved();
+      toast.success('Coupon settings saved');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not save coupon settings');
+    } finally { setBusy(false); }
+  };
+  return <div className="grid gap-4 lg:grid-cols-2">
+    <section className="space-y-4 border border-slate-300 bg-white p-5">
+      <div><h2 className="text-lg font-semibold">Registration form</h2><p className="mt-1 text-sm text-slate-600">Require full attendee details for every ticket.</p></div>
+      {event.form_template_id
+        ? <p className="flex items-center gap-2 text-sm text-[#4e6500]"><Check size={17} aria-hidden="true" />Complete attendee form enabled</p>
+        : <button disabled={busy} className="btn-secondary" onClick={enableForm}>Require complete attendee details</button>}
+    </section>
+    <section className="border border-slate-300 bg-white p-5">
+      <h2 className="text-lg font-semibold">Coupon settings</h2>
+      <label className="mt-3 flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" disabled={busy} checked={Boolean(event.coupons_allowed)} onChange={e => setCoupons(e.target.checked)} className="size-5 accent-[#4e6500]" />Allow coupon codes for this event</label>
+    </section>
+  </div>;
 }
 
 function OverviewSection({ event }: { event: import('@/lib/types').Event }) {

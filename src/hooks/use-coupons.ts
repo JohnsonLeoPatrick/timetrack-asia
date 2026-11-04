@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import type { Coupon } from '@/lib/types';
+import { toggleCouponAction } from '@/lib/server/actions/coupon.actions';
 
 export function useOrganizerCoupons() {
   return useQuery({
@@ -79,12 +80,7 @@ export function useToggleCoupon() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ couponId, isActive }: { couponId: string; isActive: boolean }) => {
-      const supabase = createSupabaseBrowserClient();
-      const { error } = await supabase
-        .from('coupons')
-        .update({ is_active: isActive })
-        .eq('id', couponId);
-      if (error) throw error;
+      await toggleCouponAction(couponId, isActive);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['organizer-coupons'] });

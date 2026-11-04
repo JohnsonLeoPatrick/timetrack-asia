@@ -136,6 +136,7 @@ export interface Participant {
   postcode: string | null;
   country: string | null;
   category_age: string | null;
+  tee_size: string | null;
   bib_number: string | null;
   qr_token: string | null;
   medical_status: boolean | null;

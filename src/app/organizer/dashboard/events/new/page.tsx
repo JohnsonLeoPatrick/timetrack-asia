@@ -71,18 +71,22 @@ function EventForgeContent() {
 
     try {
       const slug = slugify(formData.title, { lower: true, strict: true }) + '-' + Date.now().toString(36);
+      const supabase = createSupabaseBrowserClient();
+      const { data: standardForm, error: formError } = await supabase.from('form_templates')
+        .select('id').eq('name', 'Standard Registration').eq('is_system', true).is('deleted_at', null).maybeSingle();
+      if (formError || !standardForm) throw new Error('Standard registration form is unavailable');
       const parsedData = {
         ...formData,
         slug,
         status: 'DRAFT' as const,
         deleted_at: null,
         max_participants: formData.max_participants ? Number(formData.max_participants) : null,
+        form_template_id: standardForm.id,
       };
 
       const event = await createEvent(parsedData);
 
       if (event && event.id && categories.length > 0) {
-        const supabase = createSupabaseBrowserClient();
         const catsToInsert = categories.map(({ id, ...rest }) => ({ ...rest, event_id: event.id }));
         const { error: catError } = await supabase.from('event_categories').insert(catsToInsert);
         if (catError) {

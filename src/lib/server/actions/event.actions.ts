@@ -158,6 +158,28 @@ export async function updateEventStatusAction(eventId: string, status: string) {
   revalidatePath('/', 'layout');
 }
 
+export async function updateEventCouponsAction(eventId: string, allowed: boolean) {
+  const { user } = await requireRole(['ORGANIZER', 'ADMIN', 'SUPER_ADMIN']);
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.from('events').update({ coupons_allowed: allowed })
+    .eq('id', z.uuid().parse(eventId)).eq('organizer_id', user.id).is('deleted_at', null).select('id').maybeSingle();
+  if (error || !data) throw new Error('Event not found or could not be updated');
+  revalidatePath(`/events/${eventId}`, 'page');
+  revalidatePath('/organizer/dashboard', 'page');
+}
+
+export async function enableCompleteRegistrationAction(eventId: string) {
+  const { user } = await requireRole(['ORGANIZER', 'ADMIN', 'SUPER_ADMIN']);
+  const supabase = await createSupabaseServerClient();
+  const { data: form } = await supabase.from('form_templates').select('id')
+    .eq('name', 'Standard Registration').eq('is_system', true).is('deleted_at', null).maybeSingle();
+  if (!form) throw new Error('Standard registration form is unavailable');
+  const { data, error } = await supabase.from('events').update({ form_template_id: form.id })
+    .eq('id', z.uuid().parse(eventId)).eq('organizer_id', user.id).is('deleted_at', null).select('id').maybeSingle();
+  if (error || !data) throw new Error('Event not found or could not be updated');
+  revalidatePath(`/events/${eventId}`, 'page');
+}
+
 export async function deleteEventAction(eventId: string) {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();

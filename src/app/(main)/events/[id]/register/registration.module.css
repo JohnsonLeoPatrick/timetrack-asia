@@ -1,0 +1,47 @@
+.checkout {
+  background: radial-gradient(circle at 92% 8%, #eff8d1 0, transparent 27rem), #f8f9f5;
+}
+
+.checkout :global(.input-field) {
+  min-height: 44px;
+  border-radius: 0.6rem;
+  background: #fff;
+  font-size: 1rem;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.checkout :global(.input-field):focus-visible {
+  border-color: #4e6500;
+  box-shadow: 0 0 0 3px #d8e9a8;
+  outline: none;
+}
+
+.checkout :global(.label-text) {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 650;
+  color: #334155;
+}
+
+.checkout button {
+  min-height: 44px;
+  touch-action: manipulation;
+}
+
+@media (max-width: 639px) {
+  .checkout {
+    padding-bottom: max(2rem, env(safe-area-inset-bottom));
+  }
+  .checkout :global(.glass) {
+    box-shadow: 0 12px 30px rgb(24 42 16 / 6%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .checkout *, .checkout *::before, .checkout *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
