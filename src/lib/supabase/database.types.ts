@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      runner_checkout_drafts: {
+        Row: {
+          user_id: string
+          event_id: string
+          payload: Json
+          expires_at: string
+        }
+        Insert: {
+          user_id: string
+          event_id: string
+          payload: Json
+          expires_at?: string
+        }
+        Update: {
+          user_id?: string
+          event_id?: string
+          payload?: Json
+          expires_at?: string
+        }
+        Relationships: []
+      }
+      runner_profiles: {
+        Row: {
+          user_id: string
+          personal: Json
+          billing: Json
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          personal?: Json
+          billing?: Json
+          updated_at?: string
+        }
+        Update: {
+          user_id?: string
+          personal?: Json
+          billing?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       addon_options: {
         Row: {
           addon_id: string
@@ -349,6 +391,8 @@ export type Database = {
       }
       event_categories: {
         Row: {
+          event_tee_sizes: string[]
+          finisher_tee_sizes: string[]
           base_price: number
           created_at: string | null
           deleted_at: string | null
@@ -362,6 +406,8 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          event_tee_sizes?: string[]
+          finisher_tee_sizes?: string[]
           base_price?: number
           created_at?: string | null
           deleted_at?: string | null
@@ -375,6 +421,8 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          event_tee_sizes?: string[]
+          finisher_tee_sizes?: string[]
           base_price?: number
           created_at?: string | null
           deleted_at?: string | null
@@ -437,6 +485,7 @@ export type Database = {
       }
       events: {
         Row: {
+          terms_version: string
           address: string | null
           banner_image: string | null
           bib_format: string | null
@@ -464,6 +513,7 @@ export type Database = {
           venue_name: string | null
         }
         Insert: {
+          terms_version?: string
           address?: string | null
           banner_image?: string | null
           bib_format?: string | null
@@ -491,6 +541,7 @@ export type Database = {
           venue_name?: string | null
         }
         Update: {
+          terms_version?: string
           address?: string | null
           banner_image?: string | null
           bib_format?: string | null
@@ -736,6 +787,10 @@ export type Database = {
       }
       participants: {
         Row: {
+          finisher_tee_size: string | null
+          emergency_relationship: string | null
+          medical_acknowledged_at: string | null
+          participant_type: string | null
           address: string | null
           age: number | null
           bib_name: string | null
@@ -765,6 +820,10 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          finisher_tee_size?: string | null
+          emergency_relationship?: string | null
+          medical_acknowledged_at?: string | null
+          participant_type?: string | null
           address?: string | null
           age?: number | null
           bib_name?: string | null
@@ -794,6 +853,10 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          finisher_tee_size?: string | null
+          emergency_relationship?: string | null
+          medical_acknowledged_at?: string | null
+          participant_type?: string | null
           address?: string | null
           age?: number | null
           bib_name?: string | null
@@ -982,6 +1045,7 @@ export type Database = {
       }
       registrations: {
         Row: {
+          checkout_key: string | null
           athlete_id: string
           coupon_id: string | null
           created_at: string | null
@@ -999,6 +1063,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          checkout_key?: string | null
           athlete_id: string
           coupon_id?: string | null
           created_at?: string | null
@@ -1016,6 +1081,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          checkout_key?: string | null
           athlete_id?: string
           coupon_id?: string | null
           created_at?: string | null
@@ -1261,6 +1327,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      update_participant_safety: {
+        Args: { p_participant_id: string; p_details: Json }
+        Returns: undefined
+      }
       current_user_role: { Args: never; Returns: string }
       generate_registration_number: { Args: never; Returns: string }
       redeem_coupon: {

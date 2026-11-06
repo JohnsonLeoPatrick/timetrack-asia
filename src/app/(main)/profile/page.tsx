@@ -10,6 +10,7 @@ import { useLanguage } from '@/providers/language-provider';
 import { updateProfileAction } from '@/lib/server/actions/auth.actions';
 import { ChipPayButton } from '@/components/events/chip-pay-button';
 import { BillingHistory } from '@/components/events/billing-history';
+import { RunnerProfileSettings } from '@/components/events/runner-profile-settings';
 import { useQuery } from '@tanstack/react-query';
 
 export default function ProfilePage() {
@@ -191,6 +192,7 @@ export default function ProfilePage() {
             </div>
           ) : activeTab === 'billing' ? <BillingHistory userId={user.id} /> : (
             <div className="space-y-6">
+              <RunnerProfileSettings />
               <div className="glass rounded-2xl p-8 space-y-6 border border-slate-300">
                 <div>
                   <label htmlFor="profile-name" className="label-text">Username</label>

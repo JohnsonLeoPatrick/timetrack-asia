@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { reusableRunner, billingFields } from '@/lib/runner-checkout';
 
 type LocalRow = Record<string, unknown>;
 type LocalDatabase = Record<string, LocalRow[]>;
@@ -362,6 +363,16 @@ class LocalQueryBuilder {
     return this;
   }
 
+  gt(col: string, value: unknown) {
+    this.filters.push(row => compareLocal(row[col], value) > 0);
+    return this;
+  }
+
+  lt(col: string, value: unknown) {
+    this.filters.push(row => compareLocal(row[col], value) < 0);
+    return this;
+  }
+
   order(col: string, options?: { ascending?: boolean }) {
     this.orderCol = col;
     this.orderAsc = options?.ascending !== false;
@@ -423,14 +434,16 @@ class LocalQueryBuilder {
         const toUpsert = Array.isArray(this.opData) ? this.opData : [this.opData];
         const now = new Date().toISOString();
         const upserted = toUpsert.map((item) => {
-          const key = item[this.onConflictCol];
+          const columns = this.onConflictCol.split(',');
+          const key = columns.every(column => item[column] !== undefined);
+          const matches = (row: LocalRow) => columns.every(column => row[column] === item[column]);
           const existing = key
-            ? (db[this.table] as LocalRow[]).find((row) => row[this.onConflictCol] === key)
+            ? (db[this.table] as LocalRow[]).find(matches)
             : undefined;
           if (existing && (this.onConflictCol === 'id' || key !== undefined)) {
             const merged = { ...existing, ...item, updated_at: now };
             db[this.table] = (db[this.table] as LocalRow[]).map((row) =>
-              row[this.onConflictCol] === key ? merged : row
+              matches(row) ? merged : row
             );
             return merged;
           }
@@ -716,7 +729,27 @@ export function createLocalSupabaseClient(): SupabaseClient {
           return { data: null, error: null };
         }
 
+        if (fnName === 'update_participant_safety') {
+          const user = await getActiveUser();
+          const person = (db.participants || []).find(row => row.id === args.p_participant_id);
+          const registration = (db.registrations || []).find(row => row.id === person?.registration_id);
+          const event = (db.events || []).find(row => row.id === registration?.event_id);
+          if (!user || !person || registration?.athlete_id !== user.id || !event ||
+            !['PENDING', 'PAID'].includes(String(registration.status)) || new Date(String(event.registration_close)) <= new Date()) {
+            throw new Error('Safety details cannot be updated for this entry');
+          }
+          const details = localRow(args.p_details);
+          Object.assign(person, { emergency_name: details.emergency_name, emergency_phone: details.emergency_phone,
+            emergency_relationship: details.emergency_relationship, medical_status: details.medical_status,
+            medical_details: details.medical_status ? details.medical_details : null, medical_acknowledged_at: new Date().toISOString() });
+          saveClientDb(db);
+          return { data: null, error: null };
+        }
+
         if (fnName === 'create_registration_atomic') {
+          const billing = localRow(args.p_billing);
+          const existing = billing.checkout_key ? (db.registrations || []).find(row => row.athlete_id === args.p_athlete_id && row.checkout_key === billing.checkout_key) : undefined;
+          if (existing) return { data: { registration_id: existing.id, net_amount: Number(existing.net_amount) }, error: null };
           const participants = Array.isArray(args.p_participants) ? args.p_participants.map(localRow) : [];
           if (participants.length === 0) throw new Error('At least one participant is required');
 
@@ -739,6 +772,8 @@ export function createLocalSupabaseClient(): SupabaseClient {
             id: regId,
             event_id: args.p_event_id,
             athlete_id: args.p_athlete_id,
+            checkout_key: billing.checkout_key,
+            form_data: { terms_accepted_at: new Date().toISOString(), terms_version: billing.terms_version },
             registration_number: `TT-${Date.now().toString(36).toUpperCase()}`,
             persons_count: participants.length,
             status: net > 0 ? 'PENDING' : 'PAID',
@@ -755,8 +790,18 @@ export function createLocalSupabaseClient(): SupabaseClient {
 
           db.participants = db.participants || [];
           for (const p of participants) {
-            db.participants.push({ id: newId('part'), registration_id: regId, ...p });
+            db.participants.push({ id: newId('part'), registration_id: regId, ...p, medical_details: p.medical_status ? p.medical_details : null });
           }
+
+          if (billing.save_runner || billing.save_billing) {
+            db.runner_profiles ||= [];
+            let profile = db.runner_profiles.find(row => row.user_id === args.p_athlete_id);
+            if (!profile) { profile = { user_id: args.p_athlete_id, personal: {}, billing: {} }; db.runner_profiles.push(profile); }
+            const self = participants.find(person => person.participant_type === 'myself');
+            if (billing.save_runner && self) profile.personal = reusableRunner(self);
+            if (billing.save_billing) profile.billing = Object.fromEntries(billingFields.map(field => [field, billing[field]]));
+          }
+          db.runner_checkout_drafts = (db.runner_checkout_drafts || []).filter(row => row.user_id !== args.p_athlete_id || row.event_id !== args.p_event_id);
 
           if (coupon && discount > 0) {
             db.coupon_redemptions = db.coupon_redemptions || [];

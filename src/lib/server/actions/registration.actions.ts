@@ -4,49 +4,10 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { checkRateLimit } from '@/lib/server/security/rate-limit';
+import { billingSchema as runnerBillingSchema, participantSchema as runnerParticipantSchema } from '@/lib/runner-checkout';
 
-const billingSchema = z.object({
-  first_name: z.string().trim().min(1).max(100),
-  phone: z.string().trim().min(8).max(50),
-  email: z.string().trim().email().max(255),
-  country: z.string().trim().min(1).max(100),
-  city: z.string().trim().min(1).max(100),
-  postcode: z.string().trim().min(1).max(20),
-  terms_accepted: z.literal(true),
-  policy_accepted: z.literal(true),
-});
-
-const participantSchema = z.object({
-  // Category ids are opaque primary keys. The previous `.uuid()` check rejected
-  // valid non-UUID ids (e.g. seeded/local ids such as `cat_1`).
-  category_id: z.string().min(1),
-  full_name: z.string().trim().min(1, 'Enter each participant’s name').max(255),
-  bib_name: z.string().trim().min(1).max(100),
-  email: z.string().trim().email().max(255),
-  phone: z.string().trim().min(8).max(50),
-  gender: z.enum(['MALE', 'FEMALE']),
-  ic_passport: z.string().trim().min(4).max(100),
-  dob: z.iso.date(),
-  age: z.number().int().min(0).max(120),
-  address: z.string().optional(),
-  postcode: z.string().optional(),
-  country: z.string().trim().min(1).max(100),
-  category_age: z.string().trim().min(1).max(50),
-  tee_size: z.enum(['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL']),
-  medical_status: z.boolean(),
-  medical_details: z.string().optional(),
-  emergency_name: z.string().trim().min(1).max(255),
-  emergency_phone: z.string().trim().min(8).max(50),
-}).superRefine((participant, context) => {
-  const birth = new Date(`${participant.dob}T00:00:00Z`);
-  if (Number.isNaN(birth.getTime()) || birth.toISOString().slice(0, 10) !== participant.dob || birth > new Date()) {
-    context.addIssue({ code: 'custom', path: ['dob'], message: 'Enter a valid past date of birth' });
-  }
-  if (participant.medical_status && !participant.medical_details?.trim()) {
-    context.addIssue({ code: 'custom', path: ['medical_details'], message: 'Describe the medical condition' });
-  }
-});
-
+// Category ids are opaque primary keys. The previous `.uuid()` check rejected
+// valid non-UUID ids (e.g. seeded/local ids such as `cat_1`).
 const OPTIONAL_STRING_FIELDS = [
   'address', 'postcode', 'medical_details',
   'emergency_name', 'emergency_phone',
@@ -70,7 +31,7 @@ export async function createRegistrationAction(formData: FormData) {
   if (participants.length === 0) throw new Error('At least one participant is required');
 
   // Parse/clean client input before handing it to the database function.
-  const parsedBilling = billingSchema.parse(billing);
+  const parsedBilling = runnerBillingSchema.parse(billing);
 
   const parsedParticipants = participants.map((p) => {
     const cleaned: Record<string, unknown> = { ...p };
@@ -81,7 +42,9 @@ export async function createRegistrationAction(formData: FormData) {
     if (cleaned.age === null || cleaned.age === undefined) delete cleaned.age;
     if (cleaned.medical_status === null || cleaned.medical_status === undefined) delete cleaned.medical_status;
 
-    return participantSchema.parse(cleaned);
+    const person = runnerParticipantSchema.parse(cleaned);
+    if (!person.medical_status) person.medical_details = '';
+    return person;
   });
 
   // One transaction: registration + billing + participants + coupon redemption.

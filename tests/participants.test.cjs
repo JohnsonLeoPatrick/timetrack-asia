@@ -1,3 +1,4 @@
+const fixture = require('./checkout-fixtures.cjs');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -73,7 +74,7 @@ test('migration preserves existing bibs and optional registration creates no bib
   assert.deepEqual((await db.query('SELECT id, full_name, bib_number FROM participants ORDER BY id')).rows, originalParticipants);
   assert.equal(await bib(p1), '001');
   assert.equal(await bib(p2), null);
-  const created = await asUser(athlete, 'SELECT create_registration_atomic($1,$2,$3::jsonb,$4::jsonb,null) AS value', [event, athlete, JSON.stringify({first_name:'Buyer',email:'buyer@test.example',phone:'+60123456789'}), JSON.stringify([{category_id:category,full_name:'New runner',bib_number:'FORGED'}])]);
+  const created = await asUser(athlete, 'SELECT create_registration_atomic($1,$2,$3::jsonb,$4::jsonb,null) AS value', [event, athlete, JSON.stringify(fixture.billing()), JSON.stringify([fixture.person({category_id:category,full_name:'New runner',bib_number:'FORGED'})])]);
   const result = await db.query('SELECT bib_number FROM participants WHERE registration_id=$1', [created.rows[0].value.registration_id]);
   assert.equal(result.rows[0].bib_number, null);
 });

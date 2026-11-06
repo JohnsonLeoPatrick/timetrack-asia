@@ -1,0 +1,3 @@
+[submodule "tools/SkillPointer"]
+	path = tools/SkillPointer
+	url = https://github.com/blacksiders/SkillPointer.git

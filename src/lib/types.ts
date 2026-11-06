@@ -73,6 +73,8 @@ export interface Event {
 }
 
 export interface EventCategory {
+  event_tee_sizes?: string[];
+  finisher_tee_sizes?: string[];
   id: string;
   event_id: string;
   name: string;
@@ -137,6 +139,8 @@ export interface Participant {
   country: string | null;
   category_age: string | null;
   tee_size: string | null;
+  finisher_tee_size?: string | null;
+  emergency_relationship?: string | null;
   bib_number: string | null;
   qr_token: string | null;
   medical_status: boolean | null;

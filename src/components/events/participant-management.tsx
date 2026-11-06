@@ -1,5 +1,7 @@
 'use client';
 
+import { ParticipantMedicalReview } from '@/components/events/participant-medical-review';
+
 import { useState, type FormEvent } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
@@ -99,8 +101,8 @@ export function ParticipantManagement({ eventId }: { eventId: string }) {
         </tr></thead>
         <tbody>{visible.map(person => <tr key={person.id} className="border-b border-slate-300 hover:bg-slate-100">
           <td className="p-4"><input type="checkbox" aria-label={`Select ${person.full_name}`} checked={selected.includes(person.id)} onChange={event => setSelected(current => event.target.checked ? [...current, person.id] : current.filter(id => id !== person.id))} /></td>
-          <td className="p-4 font-mono text-xs">{person.registration_number}</td><td className="p-4 font-semibold">{person.full_name}</td>
-          <td className="p-4">{maskIdentity(person.ic_passport)}</td><td className="p-4">{person.category_name}</td>
+          <td className="p-4 font-mono text-xs">{person.registration_number}</td><td className="p-4 font-semibold">{person.full_name}<span className="block text-xs font-normal">{person.tee_size && `Event tee: ${person.tee_size}`}{person.finisher_tee_size && ` · Finisher tee: ${person.finisher_tee_size}`}</span></td>
+          <td className="p-4">{maskIdentity(person.ic_passport)}</td><td className="p-4">{person.category_name}<ParticipantMedicalReview eventId={eventId} participantId={person.id} /></td>
           <td className="p-4 font-mono">{person.bib_number || <span className="font-sans text-amber-800">Not assigned</span>}</td><td className="p-4">{person.status}</td>
           <td className="p-4"><button className="text-blue-700 underline" disabled={busy} onClick={() => { setEditing(person); setBib(person.bib_number || ''); setError(''); }}>{person.bib_number ? 'Edit bib number' : 'Assign bib number'}</button></td>
         </tr>)}{!visible.length && <tr><td colSpan={8} className="p-8 text-center">No matching participants</td></tr>}</tbody>

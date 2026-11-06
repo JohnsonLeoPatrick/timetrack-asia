@@ -4,6 +4,7 @@ import Image from 'next/image';
 import QRCode from 'qrcode';
 import { ownedRegistration, confirmedPayment, ticketToken } from '@/lib/server/tickets';
 import { PrintButton } from '@/components/events/print-button';
+import { ParticipantSafety } from '@/components/events/participant-safety';
 
 export default function EntryPage({ params }: { params: Promise<{ id: string }> }) {
   return <Suspense fallback={<p className="pt-32 px-6" role="status">Loading race entry…</p>}><Entry params={params} /></Suspense>;
@@ -26,7 +27,8 @@ async function Entry({ params }: { params: Promise<{ id: string }> }) {
     </header>
     {!valid && <p className="mt-5 border border-amber-300 p-4">QR tickets become available after payment is confirmed. Refunded and cancelled entries are not valid.</p>}
     {payment?.metadata?.is_test === true && <p className="mt-5 border border-amber-300 p-4 text-amber-900">Test payment — these are sandbox tickets.</p>}
-    <div className="mt-6 grid gap-5 sm:grid-cols-2">{tickets.map(person => <article key={person.id} className="break-inside-avoid border border-slate-300 bg-white p-5"><h2 className="text-lg font-semibold">{person.full_name}</h2><p className="mt-2 break-all text-xs text-slate-600">Unique participant ID: {person.id}</p>{person.bib_number && <p className="mt-2 font-medium">Bib: {person.bib_number}</p>}{person.qr && <Image unoptimized src={person.qr} width={280} height={280} alt={`Entry QR code for ${person.full_name}`} className="mx-auto mt-4 h-auto w-full max-w-[280px]" />}</article>)}</div>
+    <p className="mt-5 font-semibold">Registration total: RM{Number(registration.net_amount).toFixed(2)}</p>
+    <div className="mt-6 grid gap-5 sm:grid-cols-2">{tickets.map(person => <article key={person.id} className="break-inside-avoid border border-slate-300 bg-white p-5"><h2 className="text-lg font-semibold">{person.full_name}</h2><p className="mt-2 text-sm">{person.event_categories?.name}</p><p className="mt-2 break-all text-xs text-slate-600">Unique participant ID: {person.id}</p><p className="mt-2 text-sm">{person.tee_size && `Event tee: ${person.tee_size}`}{person.finisher_tee_size && ` · Finisher tee: ${person.finisher_tee_size}`}</p><ParticipantSafety person={person} />{person.bib_number && <p className="mt-2 font-medium">Bib: {person.bib_number}</p>}{person.qr && <Image unoptimized src={person.qr} width={280} height={280} alt={`Entry QR code for ${person.full_name}`} className="mx-auto mt-4 h-auto w-full max-w-[280px]" />}</article>)}</div>
     <div className="mt-6 flex flex-wrap gap-3 print:hidden">{valid && <PrintButton />}{payment && <Link className="btn-secondary" href={`/profile/registrations/${registration.id}/invoice`}>Print paid invoice</Link>}</div>
   </main>;
 }

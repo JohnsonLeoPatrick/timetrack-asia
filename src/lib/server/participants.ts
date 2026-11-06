@@ -21,7 +21,7 @@ export async function eventParticipants(eventId: string) {
   // PostgREST caps individual responses. Fetch every row, with a stable order.
   for (let offset = 0; ; offset += 1000) {
     const { data, error } = await client.from('participants')
-      .select('id, full_name, bib_number, ic_passport, registration_id, registrations!inner(event_id, registration_number, status, deleted_at), event_categories!inner(name, event_id)')
+      .select('id, full_name, bib_number, ic_passport, tee_size, finisher_tee_size, registration_id, registrations!inner(event_id, registration_number, status, deleted_at), event_categories!inner(name, event_id)')
       .eq('registrations.event_id', eventId).eq('event_categories.event_id', eventId)
       .is('deleted_at', null).is('registrations.deleted_at', null)
       .order('id').range(offset, offset + 999);
@@ -29,7 +29,7 @@ export async function eventParticipants(eventId: string) {
     for (const row of data || []) {
       const registration = Array.isArray(row.registrations) ? row.registrations[0] : row.registrations;
       const category = Array.isArray(row.event_categories) ? row.event_categories[0] : row.event_categories;
-      participants.push({ id: row.id, full_name: row.full_name, bib_number: row.bib_number,
+      participants.push({ id: row.id, full_name: row.full_name, bib_number: row.bib_number, tee_size: row.tee_size, finisher_tee_size: row.finisher_tee_size,
         ic_passport: row.ic_passport, registration_id: row.registration_id,
         registration_number: registration.registration_number, status: registration.status,
         category_name: category.name });

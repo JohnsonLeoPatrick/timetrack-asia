@@ -1,3 +1,4 @@
+const fixture = require('./checkout-fixtures.cjs');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -53,7 +54,7 @@ test('usernames remain unique, validated, and cannot change another account', as
 
 function create(id = owner, name = 'Runner', billing = { first_name: 'Buyer', email: 'buyer@example.test', phone: '+60123456789' }) {
   return asUser(id, 'SELECT public.create_registration_atomic($1, $2, $3::jsonb, $4::jsonb, null) AS value',
-    [event, id, JSON.stringify(billing), JSON.stringify([{ category_id: category, full_name: name }])]);
+    [event, id, JSON.stringify(fixture.billing(billing)), JSON.stringify([fixture.person({ category_id: category, full_name: name })])]);
 }
 
 test('registration uses category price and atomically creates one participant and billing record', async () => {
@@ -106,7 +107,7 @@ test('category reservation capacity is enforced across orders', async () => {
 
 test('invalid coupons fail instead of silently increasing the checkout amount', async () => {
   await db.query('UPDATE event_categories SET max_slots=3 WHERE id=$1', [category]);
-  await assert.rejects(asUser(owner, 'SELECT create_registration_atomic($1,$2,$3,$4,$5)', [event, owner, JSON.stringify({ first_name: 'Buyer', email: 'buyer@example.test', phone: '+60123456789' }), JSON.stringify([{ category_id: category, full_name: 'Runner' }]), 'MISSING']), /coupon is no longer available/);
+  await assert.rejects(asUser(owner, 'SELECT create_registration_atomic($1,$2,$3,$4,$5)', [event, owner, JSON.stringify(fixture.billing()), JSON.stringify([fixture.person({ category_id: category })]), 'MISSING']), /coupon is no longer available/);
   assert.equal(Number((await db.query('SELECT count(*) FROM registrations')).rows[0].count), 2);
 });
 
@@ -150,9 +151,9 @@ test('complete attendee checkout rejects missing details and stores tee, age gro
   await db.query("INSERT INTO event_categories(id,event_id,name,base_price) VALUES ($1,$2,'Adult 7K',100)", [detailedCategory, detailedEvent]);
   const billing = { first_name: 'Buyer', email: 'buyer@example.test', phone: '+60123456789', country: 'Malaysia', city: 'Kuala Lumpur', postcode: '50000', terms_accepted: true, policy_accepted: true };
   const attendee = { category_id: detailedCategory, full_name: 'Full Runner', bib_name: 'RUNNER', email: 'runner@example.test', phone: '+60123456780', gender: 'FEMALE', ic_passport: '900101-10-1234', dob: '1990-01-01', age: 36, country: 'Malaysia', category_age: 'Adult', tee_size: 'M', medical_status: false, emergency_name: 'Contact', emergency_phone: '+60123456781' };
-  const register = (details, person, code = null) => asUser(owner, 'SELECT create_registration_atomic($1,$2,$3::jsonb,$4::jsonb,$5) AS value', [detailedEvent, owner, JSON.stringify(details), JSON.stringify([person]), code]);
+  const register = (details, person, code = null) => asUser(owner, 'SELECT create_registration_atomic($1,$2,$3::jsonb,$4::jsonb,$5) AS value', [detailedEvent, owner, JSON.stringify(fixture.billing(details)), JSON.stringify([fixture.person(person)]), code]);
   await assert.rejects(register({ ...billing, policy_accepted: false }, attendee), /privacy policy/);
-  await assert.rejects(register(billing, { ...attendee, tee_size: undefined }), /Complete every attendee field/);
+  await assert.rejects(register(billing, { ...attendee, tee_size: undefined }), /available shirt size/);
   assert.equal(Number((await db.query('SELECT count(*) FROM registrations WHERE event_id=$1', [detailedEvent])).rows[0].count), 0);
   const coupon = (await db.query("INSERT INTO coupons(code,type,value,event_id,organizer_id,max_uses,max_uses_per_user,expires_at) VALUES ('DETAILED10','FIXED',10,$1,$2,1,1,now()+interval '1 day') RETURNING id", [detailedEvent, other])).rows[0].id;
   const result = await register(billing, attendee, 'DETAILED10');
@@ -168,4 +169,106 @@ test('complete attendee checkout rejects missing details and stores tee, age gro
   assert.equal(Number(result.rows[0].value.net_amount), 90);
   assert.equal(Number((await db.query('SELECT current_uses FROM coupons WHERE id=$1', [coupon])).rows[0].current_uses), 1);
   await assert.rejects(register(billing, attendee, 'DETAILED10'), /maximum uses|already used/);
+});
+
+let runnerEvent, runnerCategory, runnerRegistration, safetyParticipant;
+const runnerRegister = (billing, people) => asUser(owner, 'SELECT create_registration_atomic($1,$2,$3::jsonb,$4::jsonb,null) AS value', [runnerEvent, owner, JSON.stringify(billing), JSON.stringify(people)]);
+
+test('new runner checkout keeps multiple attendees and two shirts separate under one billing account', async () => {
+  runnerEvent = (await db.query("INSERT INTO events(organizer_id,title,slug,status,event_date,registration_open,registration_close,terms_and_conditions) VALUES ($1,'Runner UX','runner-ux','LIVE',now()+interval '1 month',now()-interval '1 day',now()+interval '1 week','Race terms v1') RETURNING id", [other])).rows[0].id;
+  runnerCategory = (await db.query("INSERT INTO event_categories(event_id,name,base_price,event_tee_sizes,finisher_tee_sizes) VALUES ($1,'10K',30,ARRAY['S','M','2XL'],ARRAY['M','L']) RETURNING id", [runnerEvent])).rows[0].id;
+  const result = await runnerRegister(fixture.billing(), [fixture.person({ category_id: runnerCategory, full_name: 'Self runner', participant_type: 'myself', tee_size: 'S', finisher_tee_size: 'L', medical_status: true, medical_details: 'Asthma' }), fixture.person({ category_id: runnerCategory, full_name: 'Other runner', tee_size: '2XL', finisher_tee_size: 'M', medical_details: 'Discard this stale condition' })]);
+  runnerRegistration = result.rows[0].value.registration_id;
+  const people = (await db.query('SELECT * FROM participants WHERE registration_id=$1 ORDER BY full_name', [runnerRegistration])).rows;
+  assert.equal(people.length, 2); assert.equal(people[0].tee_size, '2XL'); assert.equal(people[0].finisher_tee_size, 'M'); assert.equal(people[0].medical_details, null);
+  assert.equal(people[1].tee_size, 'S'); assert.equal(people[1].finisher_tee_size, 'L'); assert.equal(people[1].medical_details, 'Asthma');
+  safetyParticipant = people[1].id;
+  assert.ok(people[1].medical_acknowledged_at);
+  assert.equal(Number((await db.query('SELECT count(*) FROM billing_details WHERE registration_id=$1', [runnerRegistration])).rows[0].count), 1);
+  assert.equal(Number(result.rows[0].value.net_amount), 60);
+  assert.equal(Number((await db.query('SELECT count(*) FROM runner_profiles WHERE user_id=$1', [owner])).rows[0].count), 0);
+  const consent = (await db.query('SELECT form_data FROM registrations WHERE id=$1', [runnerRegistration])).rows[0].form_data;
+  assert.equal(consent.terms_version, '1'); assert.equal(consent.terms_text, 'Race terms v1'); assert.ok(consent.terms_accepted_at);
+});
+
+test('missing emergency contact, medical details, acknowledgement, agreement, and unavailable shirts roll back atomically', async () => {
+  const person = fixture.person({ category_id: runnerCategory, finisher_tee_size: 'M' });
+  for (const invalid of [{ emergency_name: '' }, { emergency_phone: '' }, { emergency_relationship: '' }, { medical_acknowledged: false }, { medical_status: true, medical_details: '' }, { finisher_tee_size: 'XS' }, { tee_size: '3XL' }]) {
+    await assert.rejects(runnerRegister(fixture.billing(), [{ ...person, ...invalid }]));
+  }
+  await assert.rejects(runnerRegister(fixture.billing({ terms_accepted: false }), [person]), /privacy policy/);
+  await assert.rejects(runnerRegister(fixture.billing({ terms_version: 'old' }), [person]), /terms changed/);
+  assert.equal(Number((await db.query('SELECT count(*) FROM registrations WHERE event_id=$1', [runnerEvent])).rows[0].count), 1);
+});
+
+test('explicit profile save stores reusable fields only; billing can save without copying another runner', async () => {
+  await runnerRegister(fixture.billing({ save_billing: true, save_runner: true }), [fixture.person({ category_id: runnerCategory, participant_type: 'myself', full_name: 'Saved runner', finisher_tee_size: 'L', medical_status: true, medical_details: 'Private condition' })]);
+  const saved = (await asUser(owner, 'SELECT personal,billing FROM runner_profiles')).rows[0];
+  assert.equal(saved.personal.full_name, 'Saved runner'); assert.equal(saved.personal.emergency_relationship, 'Sibling');
+  for (const field of ['medical_status','medical_details','medical_acknowledged','tee_size','finisher_tee_size','category_id']) assert.equal(saved.personal[field], undefined);
+  assert.equal(saved.billing.terms_accepted, undefined); assert.equal(saved.billing.checkout_key, undefined);
+  await runnerRegister(fixture.billing({ first_name: 'Updated buyer', save_billing: true }), [fixture.person({ category_id: runnerCategory, full_name: 'Someone else', finisher_tee_size: 'M' })]);
+  const updated = (await asUser(owner, 'SELECT personal,billing FROM runner_profiles')).rows[0];
+  assert.equal(updated.personal.full_name, 'Saved runner'); assert.equal(updated.billing.first_name, 'Updated buyer');
+  await runnerRegister(fixture.billing(), [fixture.person({ category_id: runnerCategory, participant_type: 'myself', full_name: 'Unsaved edit', finisher_tee_size: 'M' })]);
+  assert.equal((await asUser(owner, 'SELECT personal FROM runner_profiles')).rows[0].personal.full_name, 'Saved runner');
+});
+
+test('profiles and draft medical information are private to their account, including against event organizers', async () => {
+  await asUser(owner, 'INSERT INTO runner_checkout_drafts(user_id,event_id,payload) VALUES ($1,$2,$3)', [owner, runnerEvent, JSON.stringify({ medical_details: 'Draft condition' })]);
+  assert.equal((await asUser(other, 'SELECT * FROM runner_profiles WHERE user_id=$1', [owner])).rows.length, 0);
+  assert.equal((await asUser(other, 'SELECT * FROM runner_checkout_drafts WHERE user_id=$1', [owner])).rows.length, 0);
+  await assert.rejects(asUser(other, "INSERT INTO runner_profiles(user_id,personal) VALUES ($1,'{}')", [owner]), /row-level security/);
+  await asUser(other, "UPDATE runner_profiles SET personal='{}' WHERE user_id=$1", [owner]);
+  assert.equal((await asUser(owner, 'SELECT personal FROM runner_profiles')).rows[0].personal.full_name, 'Saved runner');
+  await asUser(other, 'DELETE FROM runner_checkout_drafts WHERE user_id=$1', [owner]);
+  assert.equal((await asUser(owner, 'SELECT * FROM runner_checkout_drafts')).rows.length, 1);
+  await db.exec('SET ROLE anon');
+  try { await assert.rejects(db.query('SELECT * FROM runner_profiles'), /permission denied/); await assert.rejects(db.query('SELECT * FROM runner_checkout_drafts'), /permission denied/); }
+  finally { await db.exec('RESET ROLE'); }
+});
+
+test('refresh and payment retry reuse the same checkout and do not duplicate profile or participant records', async () => {
+  const billing = fixture.billing(); const person = fixture.person({ category_id: runnerCategory, finisher_tee_size: 'M' });
+  const first = (await runnerRegister(billing, [person])).rows[0].value;
+  const retry = (await runnerRegister(billing, [person])).rows[0].value;
+  assert.equal(first.registration_id, retry.registration_id);
+  await db.query("INSERT INTO payments(registration_id,payment_gateway,amount,status) VALUES ($1,'CHIP',30,'FAILED')", [first.registration_id]);
+  assert.equal((await runnerRegister(billing, [person])).rows[0].value.registration_id, first.registration_id);
+  assert.equal(Number((await db.query('SELECT count(*) FROM participants WHERE registration_id=$1', [first.registration_id])).rows[0].count), 1);
+  await assert.rejects(asUser(owner, 'UPDATE registrations SET checkout_key=gen_random_uuid() WHERE id=$1', [first.registration_id]), /server-managed/);
+  assert.equal((await asUser(owner, 'SELECT * FROM runner_checkout_drafts')).rows.length, 0);
+});
+
+test('owners can update the exact participant safety details before close; outsiders cannot', async () => {
+  const details = { emergency_name: 'New contact', emergency_phone: '+60123456780', emergency_relationship: 'Parent', medical_status: false, medical_details: 'Must be cleared', medical_acknowledged: true };
+  await assert.rejects(asUser(other, 'SELECT update_participant_safety($1,$2)', [safetyParticipant, details]), /cannot be updated/);
+  await asUser(owner, 'SELECT update_participant_safety($1,$2)', [safetyParticipant, details]);
+  const person = (await db.query('SELECT * FROM participants WHERE id=$1', [safetyParticipant])).rows[0];
+  assert.equal(person.emergency_relationship, 'Parent'); assert.equal(person.medical_details, null); assert.equal(person.tee_size, 'S');
+  await db.query("UPDATE events SET registration_close=now()-interval '1 second' WHERE id=$1", [runnerEvent]);
+  await assert.rejects(asUser(owner, 'SELECT update_participant_safety($1,$2)', [safetyParticipant, details]), /cannot be updated/);
+  await db.query("UPDATE events SET registration_close=now()+interval '1 week' WHERE id=$1", [runnerEvent]);
+});
+
+test('categories without shirts accept no sizes, terms edits invalidate stale acceptance', async () => {
+  const category = (await db.query("INSERT INTO event_categories(event_id,name,base_price,event_tee_sizes,finisher_tee_sizes) VALUES ($1,'No shirts',0,'{}','{}') RETURNING id", [runnerEvent])).rows[0].id;
+  const person = fixture.person({ category_id: category, tee_size: '' });
+  await assert.rejects(runnerRegister(fixture.billing(), [{ ...person, tee_size: 'M' }]), /available shirt size/);
+  const result = (await runnerRegister(fixture.billing(), [person])).rows[0].value;
+  assert.equal(Number(result.net_amount), 0); assert.equal((await db.query('SELECT status FROM registrations WHERE id=$1', [result.registration_id])).rows[0].status, 'PAID');
+  await db.query("UPDATE events SET terms_and_conditions='Updated race terms' WHERE id=$1", [runnerEvent]);
+  await assert.rejects(runnerRegister(fixture.billing(), [person]), /terms changed/);
+  const version = (await db.query('SELECT terms_version FROM events WHERE id=$1', [runnerEvent])).rows[0].terms_version;
+  assert.notEqual(version, '1');
+  await runnerRegister(fixture.billing({ terms_version: version }), [person]);
+});
+
+test('participant medical details remain hidden from unrelated accounts and public leaderboards', async () => {
+  const stranger = '00000000-0000-4000-8000-000000000099';
+  await db.query("INSERT INTO users(id,email) VALUES ($1,'stranger@example.test')", [stranger]);
+  assert.equal((await asUser(stranger, 'SELECT medical_details FROM participants WHERE registration_id=$1', [runnerRegistration])).rows.length, 0);
+  await db.query('UPDATE events SET results_finalized=true WHERE id=$1', [runnerEvent]);
+  assert.equal((await asUser(stranger, 'SELECT medical_details FROM participants WHERE registration_id=$1', [runnerRegistration])).rows.length, 0);
+  assert.equal((await asUser(other, 'SELECT medical_details FROM participants WHERE registration_id=$1', [runnerRegistration])).rows.length, 2);
 });

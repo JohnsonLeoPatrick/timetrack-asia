@@ -10,6 +10,18 @@ export async function getEventParticipantsAction(eventId: string) {
   return eventParticipants(eventId);
 }
 
+export async function getParticipantSafetyAction(eventId: string, participantId: string) {
+  const { client } = await staffEvent(eventId);
+  const { data, error } = await client.from('participants')
+    .select('emergency_name, emergency_phone, emergency_relationship, medical_status, medical_details, medical_acknowledged_at, registrations!inner(event_id, deleted_at)')
+    .eq('id', z.uuid().parse(participantId)).eq('registrations.event_id', eventId)
+    .is('deleted_at', null).is('registrations.deleted_at', null).single();
+  if (error || !data) throw new Error('Participant safety details could not be loaded');
+  return { emergency_name: data.emergency_name, emergency_phone: data.emergency_phone,
+    emergency_relationship: data.emergency_relationship, medical_status: data.medical_status,
+    medical_details: data.medical_details, medical_acknowledged_at: data.medical_acknowledged_at };
+}
+
 type MutationResult = { success: true; count: number } | { success: false; error: string };
 
 // Expected validation errors must survive Next.js production error redaction.

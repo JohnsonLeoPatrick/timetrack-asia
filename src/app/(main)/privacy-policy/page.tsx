@@ -10,6 +10,12 @@ export default function PrivacyPolicyPage() {
 
         <div className="space-y-8 text-sm text-slate-600 font-bold normal-case tracking-normal leading-relaxed">
           <section>
+            <h2 className="text-base font-display font-semibold tracking-tight text-slate-900 mb-4">REGISTRATION INFORMATION · VERSION 2026-11-04</h2>
+            <p>We collect participant identity, contact, category, shirt, and emergency details to administer race entries. Medical declarations are collected with explicit consent for event safety and emergency assistance. Access is limited to the registering account, the event organizer, and authorized platform administrators. Obtain each participant&apos;s authorization before submitting their information.</p>
+            <p className="mt-3">Reusable personal and billing details are saved only when you select the save option. Medical declarations, shirt selections, and event agreements are not copied into reusable profiles. You can review and update saved details at checkout, remove saved details from profile settings, and request access, correction, withdrawal of consent, or deletion through the contact below. Withdrawal may affect our ability to administer your entry safely.</p>
+            <p className="mt-3">Checkout drafts are private and available for 24 hours. Medical details are included in drafts only after the medical acknowledgement is selected. Completed registrations retain the details required for event administration and the applicable retention obligations.</p>
+          </section>
+          <section>
             <h2 className="text-base font-display font-semibold tracking-tight text-slate-900 mb-4">OVERVIEW</h2>
             <p>Time Track Solution (&quot;we,&quot; &quot;our,&quot; or &quot;us&quot;) is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our platform.</p>
           </section>

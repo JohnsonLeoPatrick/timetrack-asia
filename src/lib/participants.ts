@@ -11,6 +11,8 @@ export const bibAssignmentSchema = z.object({
 });
 
 export interface ManagedParticipant {
+  tee_size?: string | null;
+  finisher_tee_size?: string | null;
   id: string;
   full_name: string;
   bib_number: string | null;

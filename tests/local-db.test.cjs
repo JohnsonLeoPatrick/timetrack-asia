@@ -13,7 +13,9 @@ function fixture() {
   const filename = path.resolve('src/lib/supabase/local-db.ts');
   const loaded = new Module(filename, module); loaded.paths = Module._nodeModulePaths(path.dirname(filename));
   const original = loaded.require.bind(loaded);
-  loaded.require = name => name === 'fs' ? { existsSync: () => true, readFileSync: () => JSON.stringify(database),
+  const checkout = new Module(path.resolve('src/lib/runner-checkout.ts'), module); checkout.filename = path.resolve('src/lib/runner-checkout.ts'); checkout.paths = loaded.paths;
+  checkout._compile(ts.transpileModule(fs.readFileSync(checkout.filename, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, checkout.filename);
+  loaded.require = name => name === '@/lib/runner-checkout' ? checkout.exports : name === 'fs' ? { existsSync: () => true, readFileSync: () => JSON.stringify(database),
     writeFileSync: (_file, data) => { database = JSON.parse(data); } } : name === 'next/headers' ? { cookies: async () => ({
       get: key => cookies.has(key) ? { value: cookies.get(key) } : undefined,
       set: (key, value) => cookies.set(key, value), delete: key => cookies.delete(key),

@@ -7,7 +7,10 @@ export type EntryPayment = {
   id: string; status: string; currency: string; amount: number | string; created_at: string;
   deleted_at?: string | null; metadata: { is_test?: boolean } | null;
 };
-export type EntryParticipant = { id: string; full_name: string; bib_number: string | null; deleted_at: string | null };
+export type EntryParticipant = { id: string; full_name: string; bib_number: string | null; deleted_at: string | null;
+  event_categories?: { name: string } | null;
+  tee_size: string | null; finisher_tee_size: string | null; emergency_name: string | null; emergency_phone: string | null;
+  emergency_relationship: string | null; medical_status: boolean | null; medical_details: string | null };
 type BillingDetails = { first_name: string; email: string; phone: string };
 export type OwnedRegistration = {
   id: string; status: string; registration_number: string; persons_count: number;
@@ -39,7 +42,7 @@ export async function ownedRegistration(id: string): Promise<OwnedRegistration> 
   const { data: profile } = await client.from('users').select('status, deleted_at').eq('id', user.id).single();
   if (profile?.status !== 'ACTIVE' || profile.deleted_at) notFound();
   const { data: registration, error } = await client.from('registrations')
-    .select('*, events(title, event_date, venue_name, cover_image), participants(id, full_name, bib_number, deleted_at), billing_details(*), payments(id, status, amount, currency, created_at, metadata, deleted_at)')
+    .select('*, events(title, event_date, venue_name, cover_image), participants(id, full_name, bib_number, deleted_at, tee_size, finisher_tee_size, emergency_name, emergency_phone, emergency_relationship, medical_status, medical_details, event_categories(name)), billing_details(*), payments(id, status, amount, currency, created_at, metadata, deleted_at)')
     .eq('id', id).eq('athlete_id', user.id).is('deleted_at', null).single();
   if (error || !registration) notFound();
   return registration as OwnedRegistration;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
@@ -12,10 +12,17 @@ import { useValidateCoupon } from '@/hooks/use-coupons';
 import { toast } from 'sonner';
 import { FieldSelect } from '@/components/ui/field-select';
 import { PageLoading } from '@/components/layout/page-loading';
+import { getRunnerCheckoutAction, saveRunnerDraftAction } from '@/lib/server/actions/runner-profile.actions';
+import { ageFromDOB, DEFAULT_SHIRT_SIZES, reusableRunner } from '@/lib/runner-checkout';
 import styles from './registration.module.css';
 
 interface ParticipantForm {
+  client_id: string;
   category_id: string;
+  participant_type: 'myself' | 'other';
+  finisher_tee_size: string;
+  emergency_relationship: string;
+  medical_acknowledged: boolean;
   full_name: string;
   bib_name: string;
   email: string;
@@ -36,7 +43,7 @@ interface ParticipantForm {
 }
 
 const emptyParticipant = (categoryId: string): ParticipantForm => ({
-  category_id: categoryId,
+  client_id: crypto.randomUUID(), category_id: categoryId, participant_type: 'other', finisher_tee_size: '', emergency_relationship: '', medical_acknowledged: false,
   full_name: '', bib_name: '', email: '', phone: '', gender: '',
   ic_passport: '', dob: '', age: null, address: '', postcode: '',
   country: 'Malaysia', category_age: '', tee_size: '', medical_status: null, medical_details: '',
@@ -56,6 +63,45 @@ export default function RegisterPage() {
   const [submitError, setSubmitError] = useState('');
   const [billing, setBilling] = useState({ first_name: '', phone: '', email: '', country: 'Malaysia', city: '', postcode: '', terms_accepted: false, policy_accepted: false });
   const [participants, setParticipants] = useState<ParticipantForm[]>([]);
+  const [checkoutKey, setCheckoutKey] = useState('');
+  const [ready, setReady] = useState(false);
+  const [profileError, setProfileError] = useState('');
+  const [savedPersonal, setSavedPersonal] = useState<Record<string, string>>({});
+  const [saveRunner, setSaveRunner] = useState(false);
+  const [saveBilling, setSaveBilling] = useState(false);
+  const [pendingCategory, setPendingCategory] = useState('');
+  const [draftStatus, setDraftStatus] = useState('');
+  const generation = useRef(0);
+
+  useEffect(() => {
+    let active = true;
+    getRunnerCheckoutAction(id).then(context => {
+      if (!active) return;
+      setSavedPersonal(context.personal);
+      const key = context.draft?.checkout_key || sessionStorage.getItem(`runner-checkout:${id}`) || crypto.randomUUID();
+      sessionStorage.setItem(`runner-checkout:${id}`, key);
+      setCheckoutKey(key);
+      setBilling(previous => ({ ...previous, ...context.billing, ...(context.draft?.billing || {}), terms_accepted: false, policy_accepted: false }));
+      if (context.draft?.participants) {
+        setParticipants(context.draft.participants.map((person: ParticipantForm) => ({ ...emptyParticipant(person.category_id), ...person, medical_acknowledged: false })));
+        setStep(context.draft.step || 1);
+      }
+      setReady(true);
+    }).catch(error => { if (active) setProfileError(error.message); });
+    return () => { active = false; };
+  }, [id]);
+
+  useEffect(() => {
+    if (!ready || submitting || !participants.length) return;
+    const current = ++generation.current;
+    const timer = setTimeout(() => {
+      setDraftStatus('Saving draft…');
+      saveRunnerDraftAction(id, { checkout_key: checkoutKey, participants, billing, step }).then(() => {
+        if (generation.current === current) setDraftStatus('Draft saved privately for 24 hours. Agreements must be confirmed after refresh.');
+      }).catch(() => { if (generation.current === current) setDraftStatus('Draft could not be saved. Keep this page open and retry.'); });
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [id, ready, submitting, checkoutKey, participants, billing, step]);
   const [couponCode, setCouponCode] = useState('');
   const [couponResult, setCouponResult] = useState<{ discount_amount?: number; valid?: boolean; error?: string } | null>(null);
   const [couponError, setCouponError] = useState('');
@@ -80,16 +126,22 @@ export default function RegisterPage() {
   }, 0);
   const discountAmount = couponResult?.discount_amount ? Number(couponResult.discount_amount) : 0;
   const netAmount = Math.max(0, totalAmount - discountAmount);
+  const shirtComplete = (person: ParticipantForm) => {
+    const category = categories.find(category => category.id === person.category_id);
+    return (!(category?.event_tee_sizes ?? DEFAULT_SHIRT_SIZES).length || (category?.event_tee_sizes ?? DEFAULT_SHIRT_SIZES).includes(person.tee_size)) &&
+      (!(category?.finisher_tee_sizes ?? []).length || (category?.finisher_tee_sizes ?? []).includes(person.finisher_tee_size));
+  };
   const participantComplete = (p: ParticipantForm) => Boolean(
     p.full_name.trim() && p.bib_name.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email) && p.phone.trim().length >= 8 &&
-    p.gender && p.ic_passport.trim().length >= 4 && p.dob && p.age !== null && p.age >= 0 && p.country &&
-    p.category_age && p.tee_size && p.medical_status !== null && p.emergency_name.trim() && p.emergency_phone.trim().length >= 8 &&
+    p.gender && p.ic_passport.trim().length >= 4 && p.dob && p.age !== null && p.age >= 0 && p.age <= 120 && p.country &&
+    p.category_age && shirtComplete(p) && p.emergency_relationship.trim() && p.medical_acknowledged && p.medical_status !== null && p.emergency_name.trim() && p.emergency_phone.trim().length >= 8 &&
     (!p.medical_status || p.medical_details.trim())
   );
 
-  const handleAddParticipant = (categoryId: string) => {
+  const handleAddParticipant = (categoryId: string, type: 'myself' | 'other') => {
     if (participants.length >= 100) return;
-    setParticipants(prev => [...prev, emptyParticipant(categoryId)]);
+    setParticipants(prev => [...prev, { ...emptyParticipant(categoryId), ...(type === 'myself' ? reusableRunner(savedPersonal) : {}), category_id: categoryId, participant_type: type, age: type === 'myself' && savedPersonal.dob ? ageFromDOB(savedPersonal.dob) : null }]);
+    setPendingCategory('');
     setCouponResult(null);
   };
 
@@ -130,7 +182,7 @@ export default function RegisterPage() {
   const handleSubmit = async () => {
     if (submission.current) return;
     if (!participants.length || participants.some(p => !participantComplete(p)) || !billing.terms_accepted || !billing.policy_accepted) {
-      setSubmitError('Complete every attendee and accept both agreements before continuing.');
+      setSubmitError('Complete every attendee and agree to the Event Terms & Conditions, Privacy Policy and Participant Declaration before continuing.');
       return;
     }
     submission.current = true;
@@ -139,11 +191,12 @@ export default function RegisterPage() {
     try {
       const fd = new FormData();
       fd.append('eventId', id);
-      fd.append('billing', JSON.stringify(billing));
+      fd.append('billing', JSON.stringify({ ...billing, checkout_key: checkoutKey, terms_version: event?.terms_version || '1', save_runner: saveRunner && participants.some(person => person.participant_type === 'myself'), save_billing: saveBilling }));
       fd.append('participants', JSON.stringify(participants));
       if (couponResult) fd.append('couponCode', couponCode);
 
       const result = await createRegistrationAction(fd);
+      sessionStorage.removeItem(`runner-checkout:${id}`);
       if (result.netAmount > 0) {
         try {
           const { checkoutUrl } = await startChipCheckoutAction(result.registrationId);
@@ -154,7 +207,7 @@ export default function RegisterPage() {
         }
       } else {
         toast.success('Registration successful!');
-        router.push('/profile');
+        router.push(`/profile/registrations/${result.registrationId}`);
       }
     } catch (error) {
       setSubmitError((error as Error).message);
@@ -164,7 +217,8 @@ export default function RegisterPage() {
     }
   };
 
-  if (isLoading) return <PageLoading label="Loading registration" />;
+  if (profileError) return <div role="alert" className="mx-auto max-w-xl px-6 py-36"><p>{profileError}</p><a href={`/login?redirectTo=${encodeURIComponent(`/events/${id}/register`)}`} className="btn-secondary mt-4">Sign in</a><button className="btn-secondary mt-4" onClick={() => window.location.reload()}>Retry</button></div>;
+  if (isLoading || !ready) return <PageLoading label="Loading registration" />;
   if (eventError) return <div role="alert" className="mx-auto max-w-xl px-6 py-36"><h1 className="text-2xl">Registration could not be loaded</h1><p className="my-4 text-slate-600">Please check your connection and try again.</p><button className="btn-secondary" onClick={() => refetch()}>Try again</button></div>;
   if (!event) return <div className="min-h-screen flex items-center justify-center"><p className="text-slate-600">Event not found</p></div>;
 
@@ -174,6 +228,7 @@ export default function RegisterPage() {
     <div className={`${styles.checkout} min-h-dvh pt-28 pb-16 flex flex-col bg-[#f8f9f5] text-slate-900 sm:pt-32`}>
       <div className="max-w-5xl mx-auto px-4 sm:px-6 w-full flex-1 flex flex-col gap-6">
 
+        <p role="status" className="text-xs text-slate-600">{draftStatus}</p>
         {/* Steps indicator */}
         <div aria-label={`Registration step ${step} of 3`} className="flex flex-wrap items-center justify-center gap-3 mb-6 shrink-0">
           {[1, 2, 3].map(s => (
@@ -197,7 +252,7 @@ export default function RegisterPage() {
                 <div className="lg:col-span-7 flex flex-col justify-between min-h-0">
                   <div className="mb-4 shrink-0">
                     <h1 className="text-2xl font-display font-semibold normal-case tracking-tight text-slate-900 line-clamp-1">{event.title}</h1>
-                    <p className="text-sm text-slate-600 mt-1">Choose tickets, then complete one form for each attendee.</p>
+                    <p className="text-sm text-slate-600 mt-1">Select a category, choose Myself or Other Participants, then review each attendee.</p>
                   </div>
 
                   <div className="flex-1 overflow-y-auto pr-2 space-y-3 min-h-0 ">
@@ -219,7 +274,7 @@ export default function RegisterPage() {
                             {count > 0 && (
                               <span className="text-xs font-semibold text-[#4e6500]">{count}x</span>
                             )}
-                            <button onClick={() => handleAddParticipant(cat.id)} disabled={isFull || participants.length >= 100}
+                            <button onClick={() => setPendingCategory(cat.id)} disabled={isFull || participants.length >= 100}
                               className={`px-4 py-2 text-xs font-semibold normal-case tracking-normal rounded-full transition-all ${
                                 isFull ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : 'bg-brand/10 text-[#4e6500] hover:bg-brand/20'
                               }`}
@@ -231,6 +286,10 @@ export default function RegisterPage() {
                   </div>
                 </div>
 
+                {pendingCategory && <div role="group" aria-label="Who are you registering?" className="lg:col-span-12 rounded-xl border border-slate-300 bg-white p-5">
+                  <p className="font-semibold">Who are you registering for {categories.find(category => category.id === pendingCategory)?.name}?</p>
+                  <div className="mt-3 flex flex-wrap gap-3"><button className="btn-primary" disabled={participants.some(person => person.participant_type === 'myself')} onClick={() => handleAddParticipant(pendingCategory, 'myself')}>Myself</button><button className="btn-secondary" onClick={() => handleAddParticipant(pendingCategory, 'other')}>Other Participants</button><button className="btn-secondary" onClick={() => setPendingCategory('')}>Cancel</button></div>
+                </div>}
                 {/* Right Side: Added list */}
                 <div className="lg:col-span-5 flex flex-col justify-between min-h-0">
                   <div className="flex-1 glass rounded-2xl p-5 flex flex-col justify-between min-h-0 border border-slate-300">
@@ -247,30 +306,35 @@ export default function RegisterPage() {
                         participants.map((p, i) => {
                           const cat = categories.find(c => c.id === p.category_id);
                           return (
-                            <div key={i} className="p-4 sm:p-5 bg-white border border-slate-300 rounded-xl">
+                            <div key={p.client_id} className="p-4 sm:p-5 bg-white border border-slate-300 rounded-xl">
                               <div className="flex items-center justify-between gap-3">
                               <div className="min-w-0 pr-2">
                                 <p className="text-xs font-semibold normal-case tracking-tight text-slate-800 truncate">{cat?.name}</p>
-                                <span className="text-xs font-bold text-[#4e6500] normal-case tracking-wider mt-0.5 block">Attendee {i + 1}</span>
+                                <span className="text-xs font-bold text-[#4e6500] normal-case tracking-wider mt-0.5 block">Attendee {i + 1} · {p.participant_type === 'myself' ? 'Myself' : 'Other participant'}</span>
                               </div>
-                              <button aria-label={`Remove participant ${i + 1}`} onClick={() => handleRemoveParticipant(i)}
+                              <button aria-label={`Remove participant ${i + 1}`} type="button" onClick={() => handleRemoveParticipant(i)}
                                 className="min-h-11 min-w-11 flex items-center justify-center hover:bg-red-50 text-red-700 transition-colors shrink-0"
                               ><X size={12} /></button>
                               </div>
                               <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                                {([['full_name', 'Full name as on IC / passport', 'name'], ['ic_passport', 'IC / passport number', 'off'], ['bib_name', 'Name printed on bib', 'nickname'], ['email', 'Email', 'email'], ['phone', 'Phone number', 'tel'], ['emergency_name', 'Emergency contact name', 'off'], ['emergency_phone', 'Emergency contact phone', 'tel']] as const).map(([field, label, autocomplete]) => <div key={field}>
+                                {([['full_name', 'Full name as on IC / passport', 'name'], ['ic_passport', 'IC / passport number', 'off'], ['bib_name', 'Name printed on bib', 'nickname'], ['email', 'Email', 'email'], ['phone', 'Phone number', 'tel']] as const).map(([field, label, autocomplete]) => <div key={field}>
                                   <label htmlFor={`${field}-${i}`} className="label-text">{label} *</label>
-                                  <input id={`${field}-${i}`} name={`${field}-${i}`} type={field === 'email' ? 'email' : field.includes('phone') ? 'tel' : 'text'} autoComplete={autocomplete} required minLength={field.includes('phone') ? 8 : undefined} maxLength={field === 'full_name' ? 255 : field === 'email' ? 255 : field.includes('phone') ? 50 : 100} value={p[field]} onChange={e => handleParticipantChange(i, field, e.target.value)} className="input-field" />
+                                  <input id={`${field}-${i}`} name={`${field}-${i}`} type={field === 'email' ? 'email' : field.includes('phone') ? 'tel' : 'text'} autoComplete={p.participant_type === 'other' ? 'off' : autocomplete} required minLength={field.includes('phone') ? 8 : undefined} maxLength={field === 'full_name' ? 255 : field === 'email' ? 255 : field.includes('phone') ? 50 : 100} value={p[field]} onChange={e => handleParticipantChange(i, field, e.target.value)} className="input-field" />
                                 </div>)}
                                 <div><label htmlFor={`gender-${i}`} className="label-text">Gender *</label><select id={`gender-${i}`} required value={p.gender} onChange={e => handleParticipantChange(i, 'gender', e.target.value)} className="input-field"><option value="">Select gender</option><option value="MALE">Male</option><option value="FEMALE">Female</option></select></div>
                                 <div><label htmlFor={`dob-${i}`} className="label-text">Date of birth *</label><input id={`dob-${i}`} type="date" required max={new Date().toISOString().slice(0, 10)} value={p.dob} onChange={e => { const dob = e.target.value; const date = new Date(`${dob}T00:00:00Z`); const today = new Date(); const age = dob ? today.getUTCFullYear() - date.getUTCFullYear() - (today.getUTCMonth() < date.getUTCMonth() || (today.getUTCMonth() === date.getUTCMonth() && today.getUTCDate() < date.getUTCDate()) ? 1 : 0) : null; setParticipants(prev => prev.map((entry, index) => index === i ? { ...entry, dob, age } : entry)); }} className="input-field" /></div>
                                 <div><label htmlFor={`age-${i}`} className="label-text">Age</label><output id={`age-${i}`} className="input-field block">{p.age === null ? 'From date of birth' : `${p.age} years`}</output></div>
                                 <div><label htmlFor={`category-age-${i}`} className="label-text">Category by age *</label><select id={`category-age-${i}`} required value={p.category_age} onChange={e => handleParticipantChange(i, 'category_age', e.target.value)} className="input-field"><option value="">Select age group</option><option value="Junior">Junior</option><option value="Adult">Adult</option><option value="Senior">Senior</option></select></div>
-                                <div><label htmlFor={`tee-${i}`} className="label-text">Event tee size *</label><select id={`tee-${i}`} required value={p.tee_size} onChange={e => handleParticipantChange(i, 'tee_size', e.target.value)} className="input-field"><option value="">Select size</option>{['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'].map(size => <option key={size} value={size}>{size}</option>)}</select></div>
+                                {([['tee_size', 'Event T-Shirt Size', cat?.event_tee_sizes ?? DEFAULT_SHIRT_SIZES], ['finisher_tee_size', 'Finisher Tee Size', cat?.finisher_tee_sizes ?? []]] as const).map(([field, label, sizes]) => sizes.length > 0 && <div key={field}><label htmlFor={`${field}-${i}`} className="label-text">{label} *</label><select id={`${field}-${i}`} required value={p[field]} onChange={e => handleParticipantChange(i, field, e.target.value)} className="input-field"><option value="">Select size</option>{sizes.map(size => <option key={size} value={size}>{size}</option>)}</select></div>)}
                                 <div><label htmlFor={`country-${i}`} className="label-text">Country *</label><input id={`country-${i}`} required maxLength={100} value={p.country} onChange={e => handleParticipantChange(i, 'country', e.target.value)} className="input-field" /></div>
-                                <div><label htmlFor={`medical-${i}`} className="label-text">Medical condition? *</label><select id={`medical-${i}`} required value={p.medical_status === null ? '' : p.medical_status ? 'yes' : 'no'} onChange={e => handleParticipantChange(i, 'medical_status', e.target.value === 'yes')} className="input-field"><option value="">Select</option><option value="no">No</option><option value="yes">Yes</option></select></div>
-                                {p.medical_status && <div className="sm:col-span-2"><label htmlFor={`medical-details-${i}`} className="label-text">Describe medical condition *</label><textarea id={`medical-details-${i}`} required maxLength={2000} value={p.medical_details} onChange={e => handleParticipantChange(i, 'medical_details', e.target.value)} className="input-field" /></div>}
                               </div>
+                              <fieldset className="mt-5 grid gap-3 border-t border-slate-200 pt-4 sm:grid-cols-2"><legend className="px-1 text-sm font-semibold">Emergency contact &amp; medical declaration</legend>
+                                {([['emergency_name', 'Emergency contact name'], ['emergency_relationship', 'Relationship to participant'], ['emergency_phone', 'Emergency contact phone']] as const).map(([field, label]) => <label key={field} className="label-text">{label} *<input className="input-field" required type={field === 'emergency_phone' ? 'tel' : 'text'} autoComplete="off" minLength={field === 'emergency_phone' ? 8 : 1} maxLength={field === 'emergency_name' ? 255 : field === 'emergency_phone' ? 50 : 100} value={p[field]} onChange={event => handleParticipantChange(i, field, event.target.value)} /></label>)}
+                                <div><label htmlFor={`medical-${i}`} className="label-text">Medical condition? *</label><select id={`medical-${i}`} required value={p.medical_status === null ? '' : p.medical_status ? 'yes' : 'no'} onChange={e => setParticipants(previous => previous.map((person, index) => index === i ? { ...person, medical_status: e.target.value === '' ? null : e.target.value === 'yes', medical_details: e.target.value === 'yes' ? person.medical_details : '' } : person))} className="input-field"><option value="">Select</option><option value="no">No</option><option value="yes">Yes</option></select></div>
+                                {p.medical_status && <div className="sm:col-span-2"><label htmlFor={`medical-details-${i}`} className="label-text">Describe medical condition *</label><textarea id={`medical-details-${i}`} required maxLength={2000} value={p.medical_details} onChange={e => handleParticipantChange(i, 'medical_details', e.target.value)} className="input-field" /></div>}
+                              </fieldset>
+                              <label className="mt-4 flex items-start gap-3 text-sm"><input type="checkbox" required checked={p.medical_acknowledged} onChange={e => handleParticipantChange(i, 'medical_acknowledged', e.target.checked)} />I confirm this participant’s emergency and medical information is accurate. I have their authorization and explicit consent (or act as their guardian) to provide this information for event safety.</label>
+                              {p.participant_type === 'myself' && <label className="mt-3 flex items-start gap-3 text-sm"><input type="checkbox" checked={saveRunner} onChange={e => setSaveRunner(e.target.checked)} />Save my personal and emergency contact details for future registrations. Medical information and shirt selections are not saved to my profile.</label>}
                               <motion.p role="status" aria-live="polite" initial={false} animate={participantComplete(p) && !reduceMotion ? { scale: [1, 1.04, 1] } : { scale: 1 }} transition={{ type: 'tween', duration: 0.35 }} className={`mt-4 flex items-center gap-2 text-sm font-semibold ${participantComplete(p) ? 'text-[#4e6500]' : 'text-slate-500'}`}>{participantComplete(p) ? <><Check size={18} aria-hidden="true" />Attendee ready</> : <>Complete this attendee to continue</>}</motion.p>
                             </div>
                           );
@@ -314,6 +378,7 @@ export default function RegisterPage() {
                 {/* Right Side: Form */}
                 <div className="lg:col-span-8 flex flex-col justify-between min-h-0">
                   <form id="billing-form" onSubmit={e => { e.preventDefault(); setStep(3); }} className="glass p-5 sm:p-6 border border-slate-300 space-y-4">
+                    <label className="flex items-start gap-3 text-sm"><input type="checkbox" checked={saveBilling} onChange={e => setSaveBilling(e.target.checked)} />Save these billing details for future registrations.</label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="sm:col-span-2">
                         <label htmlFor="billing-name" className="label-text text-xs">Full Name</label>
@@ -406,7 +471,8 @@ export default function RegisterPage() {
                     </div>
                     <div className="mt-4 rounded-xl border border-slate-300 bg-white p-5 space-y-4">
                       <p className="flex items-center gap-2 text-sm font-semibold"><ShieldCheck size={18} aria-hidden="true" />Before you finish</p>
-                      <label className="flex min-h-11 items-start gap-3 text-sm leading-relaxed"><input type="checkbox" checked={billing.terms_accepted} onChange={e => setBilling(previous => ({ ...previous, terms_accepted: e.target.checked }))} className="mt-1 size-5 shrink-0 accent-[#4e6500]" /><span>I agree to the event registration rules and regulations.</span></label>
+                      <label className="flex min-h-11 items-start gap-3 text-sm leading-relaxed"><input type="checkbox" checked={billing.terms_accepted} onChange={e => setBilling(previous => ({ ...previous, terms_accepted: e.target.checked }))} className="mt-1 size-5 shrink-0 accent-[#4e6500]" /><span>I have read and agree to the Event Terms &amp; Conditions, Privacy Policy and Participant Declaration.</span></label>
+                      <a href={`/events/${id}/terms`} target="_blank" rel="noopener noreferrer" className="block text-sm underline">View Event Terms &amp; Conditions and Participant Declaration</a>
                       {event.terms_and_conditions && <details className="rounded-lg bg-slate-50 p-3 text-sm"><summary className="cursor-pointer font-semibold">Read event rules</summary><p className="mt-3 whitespace-pre-wrap leading-relaxed text-slate-700">{event.terms_and_conditions}</p></details>}
                       <label className="flex min-h-11 items-start gap-3 text-sm leading-relaxed"><input type="checkbox" checked={billing.policy_accepted} onChange={e => setBilling(previous => ({ ...previous, policy_accepted: e.target.checked }))} className="mt-1 size-5 shrink-0 accent-[#4e6500]" /><span>I accept the <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="font-semibold underline">Time Track privacy policy</a>.</span></label>
                     </div>
@@ -423,7 +489,7 @@ export default function RegisterPage() {
                         const cat = categories.find(c => c.id === p.category_id);
                         return (
                           <div key={i} className="flex items-center justify-between py-1 text-xs">
-                            <span className="text-slate-600">{p.full_name} <span className="block text-sm">{cat?.name}</span></span>
+                            <span className="text-slate-600">{p.full_name} <span className="block text-sm">{cat?.name}</span><span className="block">{p.tee_size && `Event tee: ${p.tee_size}`} {p.finisher_tee_size && ` · Finisher tee: ${p.finisher_tee_size}`}</span><span className="block">{p.email} · {p.phone}</span><span className="block">{p.bib_name} · {p.gender} · {p.dob} · {p.category_age} · {p.country}</span><span className="block">Emergency: {p.emergency_name} ({p.emergency_relationship}) · {p.emergency_phone}</span><span className="block">Medical: {p.medical_status ? p.medical_details : 'No existing conditions'}</span></span>
                             <span className="font-bold">RM{Number(cat?.base_price || 0).toFixed(2)}</span>
                           </div>
                         );
@@ -451,7 +517,7 @@ export default function RegisterPage() {
 
                   <div className="mt-4 flex flex-col-reverse sm:flex-row sm:items-center justify-end gap-3 shrink-0">
                     <button onClick={() => setStep(2)} disabled={submitting} className="btn-secondary text-xs !py-3 !px-6 border-slate-300 rounded-xl"><ArrowLeft size={12} /> Back</button>
-                    <button onClick={handleSubmit} disabled={submitting || !billing.terms_accepted || !billing.policy_accepted} aria-busy={submitting}
+                    <button onClick={handleSubmit} disabled={submitting} aria-busy={submitting}
                       className="btn-primary text-xs !py-3.5 !px-8 disabled:opacity-30 rounded-xl font-semibold normal-case tracking-normal shadow-[0_0_20px_rgba(204,255,0,0.2)]"
                     >
                       {submitting ? <Loader2 size={12} className="animate-spin shrink-0" /> : null}

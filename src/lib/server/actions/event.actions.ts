@@ -5,6 +5,17 @@ import { requireRole } from '@/lib/server/auth/require-role';
 import { revalidatePath, cacheLife } from 'next/cache';
 import slugify from 'slugify';
 import { z } from 'zod';
+import { shirtSchema } from '@/lib/runner-checkout';
+import { staffEvent } from '@/lib/server/participants';
+
+export async function updateCategoryShirtsAction(eventId: string, categoryId: string, input: unknown) {
+  const { client } = await staffEvent(eventId);
+  const parsed = z.object({ event_tee_sizes: shirtSchema, finisher_tee_sizes: shirtSchema }).parse(input);
+  const { data, error } = await client.from('event_categories').update(parsed).eq('id', z.uuid().parse(categoryId)).eq('event_id', eventId).is('deleted_at', null).select('id').maybeSingle();
+  if (error || !data) throw new Error('Category not found or shirt options could not be saved');
+  revalidatePath(`/events/${eventId}`);
+  revalidatePath(`/organizer/dashboard/events/${eventId}`);
+}
 
 const eventSchema = z.object({
   title: z.string().min(3).max(255),

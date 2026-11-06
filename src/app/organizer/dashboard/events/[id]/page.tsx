@@ -10,6 +10,7 @@ import { DashboardFrame } from '@/components/layout/dashboard-frame';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { useEvent } from '@/hooks/use-events';
 import { ParticipantManagement } from '@/components/events/participant-management';
+import { CategoryShirts } from '@/components/events/category-shirts';
 import { updateEventStatusAction, updateEventCouponsAction, enableCompleteRegistrationAction, deleteEventAction } from '@/lib/server/actions/event.actions';
 import { toast } from 'sonner';
 import { Award } from 'lucide-react';
@@ -266,6 +267,7 @@ function EventDetailContent() {
               <EventCoverUpload eventId={id} image={event.cover_image} onSaved={() => { refetchEvent(); qc.invalidateQueries({ queryKey: ['organizer-events'] }); }} />
               <EventRegistrationSettings event={event} onSaved={() => { refetchEvent(); qc.invalidateQueries({ queryKey: ['organizer-events'] }); }} />
               <OverviewSection event={event} />
+              {(event.event_categories || []).filter(category => !category.deleted_at).map(category => <CategoryShirts key={category.id} category={category} saved={() => { refetchEvent(); }} />)}
             </>}
             {tab === 'categories' && (
               <CategoriesSection
